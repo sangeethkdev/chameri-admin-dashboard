@@ -34,6 +34,13 @@ import KiwanoTour360 from "./pages/KiwanoTour360";
 import KiwanoGallery from "./pages/KiwanoGallery";
 import KiwanoAmenities from "./pages/KiwanoAmenities";
 import KiwanoOtherProjects from "./pages/KiwanoOtherProjects";
+import KiwanoVHero from "./pages/KiwanoVHero";
+import KiwanoVLuxuryVillas from "./pages/KiwanoVLuxuryVillas";
+import KiwanoVFeatures from "./pages/KiwanoVFeatures";
+import KiwanoV360Tour from "./pages/KiwanoV360Tour";
+import KiwanoVGallery from "./pages/KiwanoVGallery";
+import KiwanoVAmenities from "./pages/KiwanoVAmenities";
+import KiwanoVOtherProjects from "./pages/KiwanoVOtherProjects";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +122,15 @@ function App() {
                 <Route path="/kiwano/gallery" element={<KiwanoGallery />} />
                 <Route path="/kiwano/amenities" element={<KiwanoAmenities />} />
                 <Route path="/kiwano/otherprojects" element={<KiwanoOtherProjects />} />
+
+                {/* Kiwano Villament Routes */}
+                <Route path="/kiwano-villament/hero" element={<KiwanoVHero />} />
+                <Route path="/kiwano-villament/luxuryvillas" element={<KiwanoVLuxuryVillas />} />
+                <Route path="/kiwano-villament/feature" element={<KiwanoVFeatures />} />
+                <Route path="/kiwano-villament/360tour" element={<KiwanoV360Tour />} />
+                <Route path="/kiwano-villament/gallery" element={<KiwanoVGallery />} />
+                <Route path="/kiwano-villament/amenities" element={<KiwanoVAmenities />} />
+                <Route path="/kiwano-villament/otherprojects" element={<KiwanoVOtherProjects />} />
 
                 <Route path="/projects" element={<Placeholder title="Projects" />} />
                 <Route path="/services" element={<Placeholder title="Services" />} />
