@@ -41,6 +41,9 @@ import KiwanoV360Tour from "./pages/KiwanoV360Tour";
 import KiwanoVGallery from "./pages/KiwanoVGallery";
 import KiwanoVAmenities from "./pages/KiwanoVAmenities";
 import KiwanoVOtherProjects from "./pages/KiwanoVOtherProjects";
+import ServiceHero from "./pages/ServiceHero";
+import ServiceCards from "./pages/ServiceCards";
+import ServiceTestimonial from "./pages/ServiceTestimonial";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -133,7 +136,11 @@ function App() {
                 <Route path="/kiwano-villament/otherprojects" element={<KiwanoVOtherProjects />} />
 
                 <Route path="/projects" element={<Placeholder title="Projects" />} />
-                <Route path="/services" element={<Placeholder title="Services" />} />
+
+                {/* Services Routes */}
+                <Route path="/services/hero" element={<ServiceHero />} />
+                <Route path="/services/cards" element={<ServiceCards />} />
+                <Route path="/services/testimonial" element={<ServiceTestimonial />} />
                 <Route path="/blogs" element={<Placeholder title="Blogs" />} />
                 <Route path="/testimonials" element={<Placeholder title="Testimonials" />} />
                 <Route path="/contacts" element={<Placeholder title="Contacts" />} />

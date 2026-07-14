@@ -74,7 +74,15 @@ const navItems = [
     ],
   },
   { label: "Projects", to: "/projects", icon: FolderOpen },
-  { label: "Services", to: "/services", icon: Briefcase },
+  {
+    label: "Services",
+    icon: Briefcase,
+    children: [
+      { label: "Hero Section", to: "/services/hero", icon: Image },
+      { label: "Cards Section", to: "/services/cards", icon: FolderOpen },
+      { label: "Testimonial Section", to: "/services/testimonial", icon: MessageSquare },
+    ],
+  },
   { label: "Blogs", to: "/blogs", icon: FileText },
   { label: "Testimonials", to: "/testimonials", icon: Star },
   { label: "Contacts", to: "/contacts", icon: MessageSquare },
