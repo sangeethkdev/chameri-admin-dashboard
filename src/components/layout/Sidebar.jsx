@@ -47,6 +47,7 @@ const navItems = [
       { label: "Gallery Images",  to: "/gallery/images", icon: Image },
     ],
   },
+  
   {
     label: "Kiwano",
     icon: Star,
