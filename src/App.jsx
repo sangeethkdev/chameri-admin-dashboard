@@ -41,7 +41,11 @@ import KiwanoV360Tour from "./pages/KiwanoV360Tour";
 import KiwanoVGallery from "./pages/KiwanoVGallery";
 import KiwanoVAmenities from "./pages/KiwanoVAmenities";
 import KiwanoVOtherProjects from "./pages/KiwanoVOtherProjects";
+import ProjectsHero from "./pages/ProjectsHero";
+import ProjectsList from "./pages/ProjectsList";
 import ServiceHero from "./pages/ServiceHero";
+import TestimonialsHero from "./pages/TestimonialsHero";
+import ClientReview from "./pages/ClientReview";
 import ServiceCards from "./pages/ServiceCards";
 import ServiceTestimonial from "./pages/ServiceTestimonial";
 
@@ -135,14 +139,19 @@ function App() {
                 <Route path="/kiwano-villament/amenities" element={<KiwanoVAmenities />} />
                 <Route path="/kiwano-villament/otherprojects" element={<KiwanoVOtherProjects />} />
 
-                <Route path="/projects" element={<Placeholder title="Projects" />} />
+                {/* Projects Routes */}
+                <Route path="/projects/hero" element={<ProjectsHero />} />
+                <Route path="/projects/list" element={<ProjectsList />} />
 
                 {/* Services Routes */}
                 <Route path="/services/hero" element={<ServiceHero />} />
                 <Route path="/services/cards" element={<ServiceCards />} />
                 <Route path="/services/testimonial" element={<ServiceTestimonial />} />
                 <Route path="/blogs" element={<Placeholder title="Blogs" />} />
-                <Route path="/testimonials" element={<Placeholder title="Testimonials" />} />
+
+                {/* Testimonials Routes */}
+                <Route path="/testimonials/hero" element={<TestimonialsHero />} />
+                <Route path="/testimonials/review" element={<ClientReview />} />
                 <Route path="/contacts" element={<Placeholder title="Contacts" />} />
                 {/* Admin-only routes */}
                 <Route element={<AdminOnlyRoute />}>

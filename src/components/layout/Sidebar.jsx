@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard, FolderOpen, Briefcase, MessageSquare,
-  FileText, Star, LogOut, ChevronRight, Settings, Zap,
-  ChevronUp, ShieldCheck, Home, Image, Info, HelpCircle,
+  FileText, Star, LogOut, ChevronRight, Zap,
+  ChevronUp, ShieldCheck, Home, Image, Info, HelpCircle, LayoutGrid, X,
 } from "lucide-react";
 
 // ─── Nav Structure ────────────────────────────────────────────────────────────
@@ -74,7 +74,14 @@ const navItems = [
       { label: "Other Project Section", to: "/kiwano-villament/otherprojects", icon: FolderOpen },
     ],
   },
-  { label: "Projects", to: "/projects", icon: FolderOpen },
+  {
+    label: "Projects",
+    icon: FolderOpen,
+    children: [
+      { label: "Hero Section", to: "/projects/hero", icon: Image },
+      { label: "Project List", to: "/projects/list", icon: LayoutGrid },
+    ],
+  },
   {
     label: "Services",
     icon: Briefcase,
@@ -84,19 +91,25 @@ const navItems = [
       { label: "Testimonial Section", to: "/services/testimonial", icon: MessageSquare },
     ],
   },
-  { label: "Blogs", to: "/blogs", icon: FileText },
-  { label: "Testimonials", to: "/testimonials", icon: Star },
+  {
+    label: "Testimonials",
+    icon: Star,
+    children: [
+      { label: "Hero Section", to: "/testimonials/hero", icon: Image },
+      { label: "Client Review", to: "/testimonials/review", icon: MessageSquare },
+    ],
+  },
   { label: "Contacts", to: "/contacts", icon: MessageSquare },
   { label: "User Management", to: "/users", icon: ShieldCheck, adminOnly: true },
-  { label: "Settings", to: "/settings", icon: Settings },
 ];
 
 const isAdminRole = (role) => role === "admin";
 
 // ─── Submenu Item ─────────────────────────────────────────────────────────────
-const SubItem = ({ to, label, icon: Icon }) => (
+const SubItem = ({ to, label, icon: Icon, onClick }) => (
   <NavLink
     to={to}
+    onClick={onClick}
     className={({ isActive }) =>
       `flex items-center gap-2 pl-9 pr-3 py-2 rounded-xl text-sm mb-0.5 transition-all duration-200 ${
         isActive
@@ -111,14 +124,14 @@ const SubItem = ({ to, label, icon: Icon }) => (
 );
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
-const Sidebar = ({ onProfileClick }) => {
+const Sidebar = ({ onProfileClick, isOpen, onClose }) => {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Track which parent menus are open
   const [openMenus, setOpenMenus] = useState(() => {
-    const activeParent = navItems.find((item) => 
+    const activeParent = navItems.find((item) =>
       item.children?.some((child) => location.pathname.startsWith(child.to))
     );
     return activeParent ? { [activeParent.label]: true } : {};
@@ -137,16 +150,35 @@ const Sidebar = ({ onProfileClick }) => {
   };
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-64 bg-dark-800 border-r border-surface-border flex flex-col z-40">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 left-0 h-screen w-64 bg-dark-800 border-r border-surface-border flex flex-col z-50 transform transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-surface-border">
-        <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shadow-glow-sm">
+        <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shadow-glow-sm shrink-0">
           <Zap size={18} className="text-white" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-white font-bold text-lg leading-tight">CHAMERI</h1>
           <p className="text-gray-500 text-xs">Admin Panel</p>
         </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface-light transition-colors"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -182,7 +214,7 @@ const Sidebar = ({ onProfileClick }) => {
                 {isOpen && (
                   <div className="mt-0.5">
                     {item.children.map((child) => (
-                      <SubItem key={child.to} {...child} />
+                      <SubItem key={child.to} {...child} onClick={onClose} />
                     ))}
                   </div>
                 )}
@@ -196,6 +228,7 @@ const Sidebar = ({ onProfileClick }) => {
               key={item.to}
               to={item.to}
               end={item.to === "/"}
+              onClick={onClose}
               className={({ isActive }) =>
                 `sidebar-link mb-1 ${isActive ? "active" : ""}`
               }
@@ -238,7 +271,8 @@ const Sidebar = ({ onProfileClick }) => {
           Sign Out
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
