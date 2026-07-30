@@ -5,6 +5,7 @@ import {
   LayoutDashboard, FolderOpen, Briefcase, MessageSquare,
   FileText, Star, LogOut, ChevronRight, Zap,
   ChevronUp, ShieldCheck, Home, Image, Info, HelpCircle, LayoutGrid, X,
+  Sparkles,
 } from "lucide-react";
 
 // ─── Nav Structure ────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ const navItems = [
       { label: "Gallery Section", to: "/kiwano/gallery", icon: Image },
       { label: "Amenities Section", to: "/kiwano/amenities", icon: Briefcase },
       { label: "Other Project Section", to: "/kiwano/otherprojects", icon: FolderOpen },
+      { label: "Highlights Section", to: "/kiwano/highlights", icon: Sparkles },
     ],
   },
   {
@@ -72,6 +74,7 @@ const navItems = [
       { label: "Gallery Section", to: "/kiwano-villament/gallery", icon: Image },
       { label: "Amenities Section", to: "/kiwano-villament/amenities", icon: Briefcase },
       { label: "Other Project Section", to: "/kiwano-villament/otherprojects", icon: FolderOpen },
+      { label: "Highlights Section", to: "/kiwano-villament/highlights", icon: Sparkles },
     ],
   },
   {

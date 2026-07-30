@@ -79,7 +79,7 @@ const TextareaField = ({ label, value, onChange, placeholder, rows = 3 }) => (
   </div>
 );
 
-const emptyCard = () => ({ heading: "", subheading: "", existingImage: "", newImage: null, preview: "" });
+const emptyCard = () => ({ title: "", heading: "", subheading: "", existingImage: "", newImage: null, preview: "" });
 
 // ── Main Component ───────────────────────────────────────────────────────────
 const ProjectsList = () => {
@@ -103,6 +103,7 @@ const ProjectsList = () => {
     setCards(
       dbCards.length > 0
         ? dbCards.map((c) => ({
+            title: c.title || "",
             heading: c.heading || "",
             subheading: c.subheading || "",
             existingImage: c.image || "",
@@ -118,6 +119,7 @@ const ProjectsList = () => {
       const formData = new FormData();
 
       const cardsData = cards.map((c, i) => ({
+        title: c.title,
         heading: c.heading,
         subheading: c.subheading,
         existingImage: c.existingImage,
@@ -220,6 +222,14 @@ const ProjectsList = () => {
                 />
               </div>
 
+              <InputField
+                label="Title"
+                value={card.title}
+                onChange={(e) =>
+                  setCards((prev) => prev.map((item, idx) => (idx === i ? { ...item, title: e.target.value } : item)))
+                }
+                placeholder="e.g. Residential"
+              />
               <InputField
                 label="Heading"
                 value={card.heading}

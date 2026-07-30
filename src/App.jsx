@@ -34,6 +34,7 @@ import KiwanoTour360 from "./pages/KiwanoTour360";
 import KiwanoGallery from "./pages/KiwanoGallery";
 import KiwanoAmenities from "./pages/KiwanoAmenities";
 import KiwanoOtherProjects from "./pages/KiwanoOtherProjects";
+import KiwanoHighlights from "./pages/KiwanoHighlights";
 import KiwanoVHero from "./pages/KiwanoVHero";
 import KiwanoVLuxuryVillas from "./pages/KiwanoVLuxuryVillas";
 import KiwanoVFeatures from "./pages/KiwanoVFeatures";
@@ -41,6 +42,7 @@ import KiwanoV360Tour from "./pages/KiwanoV360Tour";
 import KiwanoVGallery from "./pages/KiwanoVGallery";
 import KiwanoVAmenities from "./pages/KiwanoVAmenities";
 import KiwanoVOtherProjects from "./pages/KiwanoVOtherProjects";
+import KiwanoVHighlights from "./pages/KiwanoVHighlights";
 import ProjectsHero from "./pages/ProjectsHero";
 import ProjectsList from "./pages/ProjectsList";
 import ServiceHero from "./pages/ServiceHero";
@@ -129,6 +131,7 @@ function App() {
                 <Route path="/kiwano/gallery" element={<KiwanoGallery />} />
                 <Route path="/kiwano/amenities" element={<KiwanoAmenities />} />
                 <Route path="/kiwano/otherprojects" element={<KiwanoOtherProjects />} />
+                <Route path="/kiwano/highlights" element={<KiwanoHighlights />} />
 
                 {/* Kiwano Villament Routes */}
                 <Route path="/kiwano-villament/hero" element={<KiwanoVHero />} />
@@ -138,6 +141,7 @@ function App() {
                 <Route path="/kiwano-villament/gallery" element={<KiwanoVGallery />} />
                 <Route path="/kiwano-villament/amenities" element={<KiwanoVAmenities />} />
                 <Route path="/kiwano-villament/otherprojects" element={<KiwanoVOtherProjects />} />
+                <Route path="/kiwano-villament/highlights" element={<KiwanoVHighlights />} />
 
                 {/* Projects Routes */}
                 <Route path="/projects/hero" element={<ProjectsHero />} />
