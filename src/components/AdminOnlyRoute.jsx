@@ -8,4 +8,5 @@ const AdminOnlyRoute = () => {
   return isAdmin ? <Outlet /> : <Navigate to="/" replace />;
 };
 
+
 export default AdminOnlyRoute;
