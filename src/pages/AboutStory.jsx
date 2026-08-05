@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2 } from "lucide-react";
+import RichTextEditor from "../components/RichTextEditor";
+import { normalizeToHtml } from "../utils/sanitizeHtml";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -65,20 +67,6 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
-// --- Textarea Field ---
-const TextareaField = ({ label, value, onChange, placeholder, rows = 4 }) => (
-  <div>
-    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white resize-y"
-    />
-  </div>
-);
-
 // ── Main Component ───────────────────────────────────────────────────────────
 const AboutStory = () => {
   const qc = useQueryClient();
@@ -98,7 +86,9 @@ const AboutStory = () => {
   useEffect(() => {
     if (!data) return;
     setStoryHeading(data?.story?.heading || "");
-    setStoryDescription(data?.story?.description || "");
+    // Legacy rows hold plain text — lift them into HTML so the editor and the
+    // website stay in sync from the first save onward.
+    setStoryDescription(normalizeToHtml(data?.story?.description || ""));
   }, [data]);
 
   const storyMutation = useMutation({
@@ -133,7 +123,13 @@ const AboutStory = () => {
         saved={storyFlash.saved}
       >
         <InputField label="Heading" value={storyHeading} onChange={e => setStoryHeading(e.target.value)} placeholder="e.g. Our Story" />
-        <TextareaField label="Description" value={storyDescription} onChange={e => setStoryDescription(e.target.value)} placeholder="Write the story here..." rows={6} />
+        <RichTextEditor
+          label="Description"
+          value={storyDescription}
+          onChange={setStoryDescription}
+          placeholder="Write the story here — use the toolbar for bold, lists, headings and links..."
+          minHeight={260}
+        />
       </FormCard>
     </div>
   );

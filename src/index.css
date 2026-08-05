@@ -42,3 +42,63 @@
     @apply text-xs font-semibold uppercase tracking-widest text-gray-500 px-4 mb-2 mt-6;
   }
 }
+
+/* ── Rich text editor surface (RichTextEditor.jsx) ──────────────────────────
+   Tailwind's preflight removes list markers and heading sizes, so the
+   contentEditable area needs them back to preview what the site will show. */
+.rte-content p {
+  margin: 0 0 0.75em;
+}
+.rte-content > *:last-child {
+  margin-bottom: 0;
+}
+.rte-content strong,
+.rte-content b {
+  font-weight: 600;
+}
+.rte-content em,
+.rte-content i {
+  font-style: italic;
+}
+.rte-content u {
+  text-decoration: underline;
+}
+.rte-content s,
+.rte-content strike {
+  text-decoration: line-through;
+}
+.rte-content h1,
+.rte-content h2,
+.rte-content h3,
+.rte-content h4 {
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 0.5em;
+  color: #111827;
+}
+.rte-content h1 { font-size: 1.5rem; }
+.rte-content h2 { font-size: 1.25rem; }
+.rte-content h3 { font-size: 1.05rem; }
+.rte-content h4 { font-size: 0.95rem; }
+.rte-content ul,
+.rte-content ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.5rem;
+}
+.rte-content ul { list-style: disc; }
+.rte-content ol { list-style: decimal; }
+.rte-content li { margin: 0.15em 0; }
+.rte-content blockquote {
+  margin: 0 0 0.75em;
+  padding-left: 0.9rem;
+  border-left: 3px solid #dce6ff;
+  color: #4b5563;
+  font-style: italic;
+}
+.rte-content a {
+  color: #2952ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rte-content sub { vertical-align: sub; font-size: 0.8em; }
+.rte-content sup { vertical-align: super; font-size: 0.8em; }
