@@ -65,12 +65,27 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
+// --- Textarea Field ---
+const TextareaField = ({ label, value, onChange, placeholder, rows = 4 }) => (
+  <div>
+    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white resize-y"
+    />
+  </div>
+);
+
 // ── Main Component ───────────────────────────────────────────────────────────
 const KiwanoVLuxuryVillas = () => {
   const qc = useQueryClient();
   const villasFlash = useFlashSuccess();
 
   // State
+  const [heading, setHeading] = useState("");
   const [subheading, setSubheading] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -83,12 +98,13 @@ const KiwanoVLuxuryVillas = () => {
 
   useEffect(() => {
     if (!data) return;
+    setHeading(data?.luxuryVillasSection?.heading || "");
     setSubheading(data?.luxuryVillasSection?.subheading || "");
   }, [data]);
 
   const villasMutation = useMutation({
     mutationFn: async () => {
-      return api.put("/kiwano-villament/main/luxury-villas", { subheading });
+      return api.put("/kiwano-villament/main/luxury-villas", { heading, subheading });
     },
     onSuccess: () => {
       villasFlash.flash();
@@ -112,7 +128,7 @@ const KiwanoVLuxuryVillas = () => {
       <div className="bg-dark-800 p-6 rounded-3xl mb-6 shadow-sm border border-surface-border">
         <h1 className="text-2xl font-bold text-white">Kiwano Villament — Luxury Villas Section</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Manage the subheading for the Kiwano Villament Luxury Villas section.
+          Manage the heading and subheading for the Kiwano Villament Luxury Villas section.
         </p>
       </div>
 
@@ -124,6 +140,14 @@ const KiwanoVLuxuryVillas = () => {
         saved={villasFlash.saved}
       >
         <div className="grid grid-cols-1 gap-5">
+          <div>
+            <TextareaField
+              label="Heading"
+              value={heading}
+              onChange={e => setHeading(e.target.value)}
+              placeholder="e.g. A modern residential concept that combines the privacy of a villa with the convenience of apartment living..."
+            />
+          </div>
           <div>
             <InputField
               label="Subheading"

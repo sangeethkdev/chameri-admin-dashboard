@@ -65,6 +65,20 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
+// --- Textarea Field ---
+const TextareaField = ({ label, value, onChange, placeholder, rows = 3 }) => (
+  <div>
+    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white resize-y"
+    />
+  </div>
+);
+
 // --- Image Upload Field ---
 const ImageUploadField = ({ label, preview, existingUrl, fileInputRef, onChange }) => (
   <div>
@@ -103,6 +117,8 @@ const KiwanoVOtherProjects = () => {
 
   const [heading, setHeading] = useState("");
   const [subheading, setSubheading] = useState("");
+  const [imageHeading, setImageHeading] = useState("");
+  const [imageSubheading, setImageSubheading] = useState("");
   const [existingImage, setExistingImage] = useState("");
   const [newImage, setNewImage] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
@@ -119,6 +135,8 @@ const KiwanoVOtherProjects = () => {
     if (!data) return;
     setHeading(data?.otherProjectSection?.heading || "");
     setSubheading(data?.otherProjectSection?.subheading || "");
+    setImageHeading(data?.otherProjectSection?.imageHeading || "");
+    setImageSubheading(data?.otherProjectSection?.imageSubheading || "");
     setExistingImage(data?.otherProjectSection?.image || "");
   }, [data]);
 
@@ -135,6 +153,8 @@ const KiwanoVOtherProjects = () => {
       const formData = new FormData();
       formData.append("heading", heading);
       formData.append("subheading", subheading);
+      formData.append("imageHeading", imageHeading);
+      formData.append("imageSubheading", imageSubheading);
       if (newImage) formData.append("image", newImage);
 
       return api.put("/kiwano-villament/main/other-project-section", formData, {
@@ -182,6 +202,25 @@ const KiwanoVOtherProjects = () => {
             fileInputRef={fileInputRef}
             onChange={handleFile}
           />
+
+          {/* Text overlaid on the section image */}
+          <div className="pt-2 border-t border-gray-100 space-y-5">
+            <p className="text-xs font-black uppercase tracking-widest text-brand-500 pt-3">
+              Text On Image
+            </p>
+            <InputField
+              label="Image Heading"
+              value={imageHeading}
+              onChange={e => setImageHeading(e.target.value)}
+              placeholder="e.g. Kiwano Villa"
+            />
+            <TextareaField
+              label="Image Subheading"
+              value={imageSubheading}
+              onChange={e => setImageSubheading(e.target.value)}
+              placeholder="e.g. Discover crafted living spaces where modern design meets timeless comfort..."
+            />
+          </div>
         </div>
       </FormCard>
     </div>

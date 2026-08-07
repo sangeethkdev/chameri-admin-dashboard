@@ -65,20 +65,6 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
-// --- Textarea Field ---
-const TextareaField = ({ label, value, onChange, placeholder, rows = 4 }) => (
-  <div>
-    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={rows}
-      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white resize-y"
-    />
-  </div>
-);
-
 // ── Main Component ───────────────────────────────────────────────────────────
 const KiwanoFeature = () => {
   const qc = useQueryClient();
@@ -107,7 +93,6 @@ const KiwanoFeature = () => {
       const f = dbFeatures[i] || {};
       seededFeatures.push({
         name: f.name || "",
-        description: f.description || "",
         existingImage: f.image || "",
         newImage: null,
         preview: ""
@@ -124,7 +109,6 @@ const KiwanoFeature = () => {
       
       const featuresData = features.map((f, i) => ({
          name: f.name,
-         description: f.description,
          existingImage: f.existingImage,
          newImageIndex: f.newImage ? i : null
       }));
@@ -236,15 +220,6 @@ const KiwanoFeature = () => {
                 ))}
                 placeholder="e.g. Swimming Pool"
               />
-              <TextareaField
-                label="Description"
-                value={feature.description}
-                onChange={e => setFeatures(prev => prev.map((item, idx) =>
-                  idx === i ? { ...item, description: e.target.value } : item
-                ))}
-                placeholder="e.g. Enjoy our luxury pool..."
-                rows={3}
-              />
             </div>
           ))}
         </div>
@@ -253,7 +228,7 @@ const KiwanoFeature = () => {
            type="button"
            onClick={() => {
              setFeatures(prev => [...prev, {
-               name: "", description: "", existingImage: "", newImage: null, preview: ""
+               name: "", existingImage: "", newImage: null, preview: ""
              }]);
            }}
            className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 font-semibold hover:bg-gray-50 hover:border-brand-300 transition-colors"
