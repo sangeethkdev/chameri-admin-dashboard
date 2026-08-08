@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, FolderOpen, CheckCircle, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -148,20 +149,25 @@ const HomeVillaPlan = () => {
   // Mutation
   const villaplanMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      
-      formData.append("card1Heading", card1Heading);
-      formData.append("card1Description", card1Description);
-      if (card1NewImage) formData.append("card1Image", card1NewImage);
-      
-      formData.append("card2Heading", card2Heading);
-      formData.append("card2Description", card2Description);
-      if (card2NewImage) formData.append("card2Image", card2NewImage);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      const card1Image = card1NewImage
+        ? (await uploadToCloudinary(card1NewImage, { folder: "chameri/home" })).url
+        : card1ExistingImage;
+      const card2Image = card2NewImage
+        ? (await uploadToCloudinary(card2NewImage, { folder: "chameri/home" })).url
+        : card2ExistingImage;
 
-      return api.put("/home/main/villaplan", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/home/main/villaplan", {
+        heading,
+        subheading,
+        card1Heading,
+        card1Description,
+        card1Image,
+        card2Heading,
+        card2Description,
+        card2Image,
       });
     },
     onSuccess: () => {

@@ -102,7 +102,7 @@ const navItems = [
       { label: "Client Review", to: "/testimonials/review", icon: MessageSquare },
     ],
   },
-  { label: "Contacts", to: "/contacts", icon: MessageSquare },
+  { label: "Contacts", to: "/contacts/hero", icon: MessageSquare },
   { label: "User Management", to: "/users", icon: ShieldCheck, adminOnly: true },
 ];
 

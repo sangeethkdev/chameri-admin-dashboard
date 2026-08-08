@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -175,20 +176,27 @@ const KiwanoVGallery = () => {
 
   const galleryMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large or multiple photos through the backend's serverless
+      // function, which rejects anything over ~4.5MB.
+      const uploadCategory = async (files) => {
+        const uploaded = await Promise.all(
+          files.map((file) => uploadToCloudinary(file, { folder: "chameri/kiwano-villament" }))
+        );
+        return uploaded.map((r) => r.url);
+      };
 
-      formData.append("existingExteriorImages", JSON.stringify(existingExterior));
-      newExterior.forEach(file => formData.append("exteriorImages", file));
+      const [exteriorUrls, interiorUrls, amenitiesUrls] = await Promise.all([
+        uploadCategory(newExterior),
+        uploadCategory(newInterior),
+        uploadCategory(newAmenities),
+      ]);
 
-      formData.append("existingInteriorImages", JSON.stringify(existingInterior));
-      newInterior.forEach(file => formData.append("interiorImages", file));
-
-      formData.append("existingAmenitiesImages", JSON.stringify(existingAmenities));
-      newAmenities.forEach(file => formData.append("amenitiesImages", file));
-
-      return api.put("/kiwano-villament/main/gallery-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/kiwano-villament/main/gallery-section", {
+        heading,
+        exteriorImages: [...existingExterior, ...exteriorUrls],
+        interiorImages: [...existingInterior, ...interiorUrls],
+        amenitiesImages: [...existingAmenities, ...amenitiesUrls],
       });
     },
     onSuccess: () => {
