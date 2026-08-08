@@ -146,6 +146,7 @@ const ClientReview = () => {
     if (data.reviewsSection?.cards && data.reviewsSection.cards.length > 0) {
       initialCards = data.reviewsSection.cards.map((card, idx) => ({
         id: Date.now() + idx,
+        _id: card._id,
         quote: card.quote || "",
         name: card.name || "",
         role: card.role || "",
@@ -202,6 +203,7 @@ const ClientReview = () => {
 
       cards.forEach((card) => {
         const payloadCard = {
+          _id: card._id,
           quote: card.quote,
           name: card.name,
           role: card.role,

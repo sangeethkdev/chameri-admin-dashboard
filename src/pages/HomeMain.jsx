@@ -87,6 +87,7 @@ const HomeMain = () => {
   const [heading, setHeading] = useState("");
   const [subheading1, setSubheading1] = useState("");
   const [subheading2, setSubheading2] = useState("");
+  const [tagline, setTagline] = useState("");
 
   // Fetch Data
   const { data, isLoading } = useQuery({
@@ -103,11 +104,12 @@ const HomeMain = () => {
     setHeading(data?.hero?.heading || "");
     setSubheading1(data?.hero?.subheading1 || "");
     setSubheading2(data?.hero?.subheading2 || "");
+    setTagline(data?.hero?.tagline || "");
   }, [data]);
 
   // Mutation
   const heroMutation = useMutation({
-    mutationFn: async () => api.put("/home/main/hero", { heading, subheading1, subheading2 }),
+    mutationFn: async () => api.put("/home/main/hero", { heading, subheading1, subheading2, tagline }),
     onSuccess: () => {
       heroFlash.flash();
       qc.invalidateQueries(["home-main"]);
@@ -154,12 +156,23 @@ const HomeMain = () => {
             onChange={e => setSubheading1(e.target.value)} 
             placeholder="e.g. Building the Future" 
           />
-          <InputField 
-            label="Subheading 2" 
-            value={subheading2} 
-            onChange={e => setSubheading2(e.target.value)} 
-            placeholder="e.g. With passion and precision" 
+          <InputField
+            label="Subheading 2"
+            value={subheading2}
+            onChange={e => setSubheading2(e.target.value)}
+            placeholder="e.g. With passion and precision"
           />
+          <div className="md:col-span-2">
+            <InputField
+              label="Tagline"
+              value={tagline}
+              onChange={e => setTagline(e.target.value)}
+              placeholder="e.g. Where Life Settles"
+            />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Small label on the divider line. Displayed in uppercase.
+            </p>
+          </div>
         </div>
       </FormCard>
     </div>
