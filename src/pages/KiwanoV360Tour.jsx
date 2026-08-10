@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Camera, CheckCircle2, UploadCloud, Film } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -142,13 +143,22 @@ const KiwanoV360Tour = () => {
 
   const tourMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      if (newMedia) formData.append("media", newMedia);
+      // New media goes straight to Cloudinary from the browser — this avoids
+      // routing large photos/videos through the backend's serverless
+      // function, which rejects anything over ~4.5MB.
+      let mediaUrl = existingMedia;
+      if (newMedia) {
+        const uploaded = await uploadToCloudinary(newMedia, {
+          folder: "chameri/kiwano-villament",
+          resourceType: "auto",
+        });
+        mediaUrl = uploaded.url;
+      }
 
-      return api.put("/kiwano-villament/main/tour360-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/kiwano-villament/main/tour360-section", {
+        heading,
+        subheading,
+        media: mediaUrl,
       });
     },
     onSuccess: () => {
