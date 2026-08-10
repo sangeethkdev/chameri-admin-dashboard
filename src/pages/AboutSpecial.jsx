@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -101,16 +102,26 @@ const AboutSpecial = () => {
 
   const specialMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("specialTitle", specialTitle);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB. Each item's final image URL is
+      // resolved up front (new upload or existing URL) before the request.
+      const resolvedImages = await Promise.all(
+        specialItems.map(async (item) => {
+          if (!item.newImage) return item.existingImage;
+          const uploaded = await uploadToCloudinary(item.newImage, { folder: "chameri/about" });
+          return uploaded.url;
+        })
+      );
+
+      const payload = { specialTitle };
       SPECIAL_KEYS.forEach((key, i) => {
-        formData.append(`${key}Heading`,    specialItems[i].heading);
-        formData.append(`${key}Subheading`, specialItems[i].subheading);
-        if (specialItems[i].newImage) formData.append(`${key}Image`, specialItems[i].newImage);
+        payload[`${key}Heading`] = specialItems[i].heading;
+        payload[`${key}Subheading`] = specialItems[i].subheading;
+        payload[`${key}Image`] = resolvedImages[i];
       });
-      return api.put("/about/main/special-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+
+      return api.put("/about/main/special-section", payload);
     },
     onSuccess: () => {
       specialFlash.flash();

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Star, CheckCircle2, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -103,23 +104,28 @@ const KiwanoFeature = () => {
 
   const featureMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("featureHeading", featureHeading);
-      formData.append("featureSubheading", featureSubheading);
-      
-      const featuresData = features.map((f, i) => ({
-         name: f.name,
-         existingImage: f.existingImage,
-         newImageIndex: f.newImage ? i : null
-      }));
-      formData.append("featuresData", JSON.stringify(featuresData));
-      
-      features.forEach(f => {
-         if (f.newImage) formData.append("featureImages", f.newImage);
-      });
-      
-      return api.put("/kiwano/main/feature-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New feature images go straight to Cloudinary from the browser — this
+      // avoids routing photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB. Each feature's final image URL
+      // is resolved here before the save request, so the backend only ever
+      // deals with plain JSON.
+      const resolvedFeatures = await Promise.all(
+        features.map(async (f) => {
+          let imageUrl = f.existingImage || "";
+          if (f.newImage) {
+            const uploaded = await uploadToCloudinary(f.newImage, {
+              folder: "chameri/kiwano",
+            });
+            imageUrl = uploaded.url;
+          }
+          return { name: f.name, image: imageUrl };
+        })
+      );
+
+      return api.put("/kiwano/main/feature-section", {
+        featureHeading,
+        featureSubheading,
+        features: resolvedFeatures,
       });
     },
     onSuccess: () => {

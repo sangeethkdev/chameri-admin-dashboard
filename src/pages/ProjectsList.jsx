@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, LayoutGrid, CheckCircle2, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -116,24 +117,28 @@ const ProjectsList = () => {
 
   const cardsMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
+      // New card images go straight to Cloudinary from the browser — this
+      // avoids routing large or multiple photos through the backend's
+      // serverless function, which rejects anything over ~4.5MB. Each card's
+      // final image URL is resolved here before the save request, so the
+      // backend just receives plain JSON.
+      const resolvedCards = await Promise.all(
+        cards.map(async (c) => {
+          let image = c.existingImage;
+          if (c.newImage) {
+            const uploaded = await uploadToCloudinary(c.newImage, { folder: "chameri/projects" });
+            image = uploaded.url;
+          }
+          return {
+            title: c.title,
+            heading: c.heading,
+            subheading: c.subheading,
+            image,
+          };
+        })
+      );
 
-      const cardsData = cards.map((c, i) => ({
-        title: c.title,
-        heading: c.heading,
-        subheading: c.subheading,
-        existingImage: c.existingImage,
-        newImageIndex: c.newImage ? i : null,
-      }));
-      formData.append("cardsData", JSON.stringify(cardsData));
-
-      cards.forEach((c) => {
-        if (c.newImage) formData.append("cardImages", c.newImage);
-      });
-
-      return api.put("/projects-main/main/cards-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      return api.put("/projects-main/main/cards-section", { cards: resolvedCards });
     },
     onSuccess: () => {
       cardsFlash.flash();

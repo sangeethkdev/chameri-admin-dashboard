@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, MessageSquare, CheckCircle, UploadCloud, Plus, X, Star } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -195,43 +196,46 @@ const ClientReview = () => {
 
   const reviewMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
+      // New photos/videos go straight to Cloudinary from the browser — this
+      // avoids routing them through the backend's serverless function, which
+      // rejects anything over ~4.5MB. Each card resolves to a final
+      // image/video URL (existing URL kept as-is, or the freshly uploaded
+      // one) before the save request is sent; `_id` is carried through
+      // untouched so the backend can match it back to the stored card and
+      // keep its `_id`/`createdAt` stable instead of re-creating it.
+      const payloadData = await Promise.all(
+        cards.map(async (card) => {
+          let imageUrl = card.existingImage || "";
+          if (card.newImage) {
+            const uploaded = await uploadToCloudinary(card.newImage, {
+              folder: "chameri/testimonials",
+              resourceType: "auto",
+            });
+            imageUrl = uploaded.url;
+          }
 
-      const payloadData = [];
-      let newImageIndex = 0;
-      let newVideoIndex = 0;
+          let videoUrl = card.existingVideo || "";
+          if (card.newVideo) {
+            const uploaded = await uploadToCloudinary(card.newVideo, {
+              folder: "chameri/testimonials",
+              resourceType: "auto",
+            });
+            videoUrl = uploaded.url;
+          }
 
-      cards.forEach((card) => {
-        const payloadCard = {
-          _id: card._id,
-          quote: card.quote,
-          name: card.name,
-          role: card.role,
-          rating: card.rating,
-          existingImage: card.existingImage,
-          existingVideo: card.existingVideo,
-        };
+          return {
+            _id: card._id,
+            quote: card.quote,
+            name: card.name,
+            role: card.role,
+            rating: card.rating,
+            image: imageUrl,
+            video: videoUrl,
+          };
+        })
+      );
 
-        if (card.newImage) {
-          payloadCard.newImageIndex = newImageIndex;
-          formData.append("reviewImages", card.newImage);
-          newImageIndex++;
-        }
-
-        if (card.newVideo) {
-          payloadCard.newVideoIndex = newVideoIndex;
-          formData.append("reviewVideos", card.newVideo);
-          newVideoIndex++;
-        }
-
-        payloadData.push(payloadCard);
-      });
-
-      formData.append("reviewsData", JSON.stringify(payloadData));
-
-      return api.put("/testimonials-main/main/reviews", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      return api.put("/testimonials-main/main/reviews", { reviewsData: payloadData });
     },
     onSuccess: () => {
       reviewFlash.flash();

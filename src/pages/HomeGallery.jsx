@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, Image as ImageIcon, CheckCircle, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -246,24 +247,33 @@ const HomeGallery = () => {
   // Mutation
   const galleryMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large/multiple photos through the backend's serverless
+      // function, which rejects anything over ~4.5MB. Each card's final
+      // image URL list (existing + newly uploaded) is resolved here and
+      // sent as plain JSON.
+      const payload = { heading, subheading };
 
-      CARD_KEYS.forEach((key) => {
-        const card = cardsData[key];
-        formData.append(`${key}Name`, card.name || "");
-        formData.append(`${key}Place`, card.place || "");
-        formData.append(`${key}Date`, card.date || "");
-        formData.append(`${key}ExistingImages`, JSON.stringify(card.existingImages || []));
-        (card.newImages || []).forEach((img) => {
-          formData.append(`${key}Images`, img.file);
-        });
-      });
+      await Promise.all(
+        CARD_KEYS.map(async (key) => {
+          const card = cardsData[key];
+          payload[`${key}Name`] = card.name || "";
+          payload[`${key}Place`] = card.place || "";
+          payload[`${key}Date`] = card.date || "";
 
-      return api.put("/home/main/gallery", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+          const uploaded = await Promise.all(
+            (card.newImages || []).map((img) =>
+              uploadToCloudinary(img.file, { folder: "chameri/home" })
+            )
+          );
+          payload[`${key}Images`] = [
+            ...(card.existingImages || []),
+            ...uploaded.map((r) => r.url),
+          ];
+        })
+      );
+
+      return api.put("/home/main/gallery", payload);
     },
     onSuccess: () => {
       galleryFlash.flash();

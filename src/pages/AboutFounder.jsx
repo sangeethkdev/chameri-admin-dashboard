@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -120,14 +121,21 @@ const AboutFounder = () => {
 
   const founderMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("founderQuote", founderQuote);
-      formData.append("founderName", founderName);
-      formData.append("founderRole", founderRole);
-      formData.append("founderArchitectsName", founderArchitectsName);
-      if (newFounderImage) formData.append("founderImage", newFounderImage);
-      return api.put("/about/main/founder", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New image goes straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      let founderImageUrl = existingFounderImage;
+      if (newFounderImage) {
+        const uploaded = await uploadToCloudinary(newFounderImage, { folder: "chameri/about" });
+        founderImageUrl = uploaded.url;
+      }
+
+      return api.put("/about/main/founder", {
+        founderQuote,
+        founderName,
+        founderRole,
+        founderArchitectsName,
+        founderImage: founderImageUrl,
       });
     },
     onSuccess: () => {

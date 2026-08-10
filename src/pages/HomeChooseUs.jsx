@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, Star, CheckCircle, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -155,24 +156,31 @@ const HomeChooseUs = () => {
   // Mutation
   const chooseUsMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      
-      formData.append("card1Heading", card1Heading);
-      formData.append("card1Subheading", card1Subheading);
-      if (card1NewImage) formData.append("card1Image", card1NewImage);
-      
-      formData.append("card2Heading", card2Heading);
-      formData.append("card2Subheading", card2Subheading);
-      if (card2NewImage) formData.append("card2Image", card2NewImage);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      const card1Image = card1NewImage
+        ? (await uploadToCloudinary(card1NewImage, { folder: "chameri/home" })).url
+        : card1ExistingImage;
+      const card2Image = card2NewImage
+        ? (await uploadToCloudinary(card2NewImage, { folder: "chameri/home" })).url
+        : card2ExistingImage;
+      const card3Image = card3NewImage
+        ? (await uploadToCloudinary(card3NewImage, { folder: "chameri/home" })).url
+        : card3ExistingImage;
 
-      formData.append("card3Heading", card3Heading);
-      formData.append("card3Subheading", card3Subheading);
-      if (card3NewImage) formData.append("card3Image", card3NewImage);
-
-      return api.put("/home/main/chooseus", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/home/main/chooseus", {
+        heading,
+        subheading,
+        card1Heading,
+        card1Subheading,
+        card1Image,
+        card2Heading,
+        card2Subheading,
+        card2Image,
+        card3Heading,
+        card3Subheading,
+        card3Image,
       });
     },
     onSuccess: () => {

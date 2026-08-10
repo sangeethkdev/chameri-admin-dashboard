@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -108,17 +109,30 @@ const AboutVisionMission = () => {
 
   const visionMissionMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("visionTitle", visionTitle);
-      formData.append("visionHeading", visionHeading);
-      formData.append("visionSubheading", visionSubheading);
-      formData.append("missionTitle", missionTitle);
-      formData.append("missionHeading", missionHeading);
-      formData.append("missionSubheading", missionSubheading);
-      if (newVisionImage) formData.append("visionImage", newVisionImage);
-      if (newMissionImage) formData.append("missionImage", newMissionImage);
-      return api.put("/about/main/vision-mission", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      let visionImageUrl = existingVisionImage;
+      if (newVisionImage) {
+        const uploaded = await uploadToCloudinary(newVisionImage, { folder: "chameri/about" });
+        visionImageUrl = uploaded.url;
+      }
+
+      let missionImageUrl = existingMissionImage;
+      if (newMissionImage) {
+        const uploaded = await uploadToCloudinary(newMissionImage, { folder: "chameri/about" });
+        missionImageUrl = uploaded.url;
+      }
+
+      return api.put("/about/main/vision-mission", {
+        visionTitle,
+        visionHeading,
+        visionSubheading,
+        visionImage: visionImageUrl,
+        missionTitle,
+        missionHeading,
+        missionSubheading,
+        missionImage: missionImageUrl,
       });
     },
     onSuccess: () => {

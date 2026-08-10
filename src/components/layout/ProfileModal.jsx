@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axiosInstance";
 import toast from "react-hot-toast";
+import { uploadToCloudinary } from "../../lib/cloudinaryUpload";
 
 const ProfileModal = ({ onClose }) => {
   const { admin, logout } = useAuth();
@@ -26,12 +27,18 @@ const ProfileModal = ({ onClose }) => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("name", displayName);
-      if (avatarFile) formData.append("avatar", avatarFile);
+      // Avatar goes straight to Cloudinary from the browser — this avoids
+      // routing it through the backend's serverless function, which rejects
+      // anything over ~4.5MB.
+      let avatarUrl;
+      if (avatarFile) {
+        const uploaded = await uploadToCloudinary(avatarFile, { folder: "chameri/general" });
+        avatarUrl = uploaded.url;
+      }
 
-      const { data } = await api.put("/auth/update-profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const { data } = await api.put("/auth/update-profile", {
+        name: displayName,
+        ...(avatarUrl ? { avatar: avatarUrl } : {}),
       });
 
       // Update local storage with fresh data from server

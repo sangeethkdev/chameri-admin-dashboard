@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Sparkles, CheckCircle2, UploadCloud, Film, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -232,16 +233,30 @@ const KiwanoVHighlights = () => {
 
   const highlightsMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      if (newVideo) formData.append("video", newVideo);
+      // New video/images go straight to Cloudinary from the browser — this
+      // avoids routing large or multiple files through the backend's
+      // serverless function, which rejects anything over ~4.5MB.
+      let videoUrl = existingVideo;
+      if (newVideo) {
+        const uploaded = await uploadToCloudinary(newVideo, {
+          folder: "chameri/kiwano-villament",
+          resourceType: "auto",
+        });
+        videoUrl = uploaded.url;
+      }
 
-      formData.append("existingImages", JSON.stringify(existingImages));
-      newImages.forEach((file) => formData.append("images", file));
+      const uploadedImages = await Promise.all(
+        newImages.map((file) =>
+          uploadToCloudinary(file, { folder: "chameri/kiwano-villament", resourceType: "auto" })
+        )
+      );
+      const imageUrls = [...existingImages, ...uploadedImages.map((r) => r.url)].slice(0, MAX_IMAGES);
 
-      return api.put("/kiwano-villament/main/highlights-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/kiwano-villament/main/highlights-section", {
+        heading,
+        subheading,
+        video: videoUrl,
+        images: imageUrls,
       });
     },
     onSuccess: () => {

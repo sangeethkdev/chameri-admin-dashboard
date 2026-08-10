@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import {
   Save, Loader2, Image as ImageIcon, CheckCircle2, X, Plus, UploadCloud,
 } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -94,11 +95,16 @@ const GalleryImages = () => {
 
   const imagesMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("existingImages", JSON.stringify(existingImages));
-      newImages.forEach(({ file }) => formData.append("galleryImages", file));
-      return api.put("/gallery/main/images", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large or multiple photos through the backend's serverless
+      // function, which rejects anything over ~4.5MB.
+      const uploaded = await Promise.all(
+        newImages.map(({ file }) => uploadToCloudinary(file, { folder: "chameri/gallery" }))
+      );
+      const newUrls = uploaded.map((r) => r.url);
+
+      return api.put("/gallery/main/images", {
+        galleryImages: [...existingImages, ...newUrls],
       });
     },
     onSuccess: () => {

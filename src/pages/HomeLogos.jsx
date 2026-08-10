@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, Image as ImageIcon, CheckCircle, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -97,12 +98,15 @@ const HomeLogos = () => {
   // Mutation
   const logosMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("existingLogos", JSON.stringify(existingLogos));
-      newLogos.forEach(({ file }) => formData.append("homeLogos", file));
-      return api.put("/home/main/logos", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // New logos go straight to Cloudinary from the browser — this avoids
+      // routing photos through the backend's serverless function, which
+      // rejects anything over ~4.5MB.
+      const uploaded = await Promise.all(
+        newLogos.map(({ file }) => uploadToCloudinary(file, { folder: "chameri/home" }))
+      );
+      const homeLogos = [...existingLogos, ...uploaded.map((r) => r.url)];
+
+      return api.put("/home/main/logos", { homeLogos });
     },
     onSuccess: () => {
       logosFlash.flash();

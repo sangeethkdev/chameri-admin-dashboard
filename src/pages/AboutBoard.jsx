@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -101,16 +102,26 @@ const AboutBoard = () => {
 
   const boardMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("boardTitle", boardTitle);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB. Each member's final image URL
+      // is resolved up front (new upload or existing URL) before the request.
+      const resolvedImages = await Promise.all(
+        boardItems.map(async (item) => {
+          if (!item.newImage) return item.existingImage;
+          const uploaded = await uploadToCloudinary(item.newImage, { folder: "chameri/about" });
+          return uploaded.url;
+        })
+      );
+
+      const payload = { boardTitle };
       BOARD_KEYS.forEach((key, i) => {
-        formData.append(`${key}Name`,        boardItems[i].name);
-        formData.append(`${key}Designation`, boardItems[i].designation);
-        if (boardItems[i].newImage) formData.append(`${key}Image`, boardItems[i].newImage);
+        payload[`${key}Name`] = boardItems[i].name;
+        payload[`${key}Designation`] = boardItems[i].designation;
+        payload[`${key}Image`] = resolvedImages[i];
       });
-      return api.put("/about/main/board-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+
+      return api.put("/about/main/board-section", payload);
     },
     onSuccess: () => {
       boardFlash.flash();

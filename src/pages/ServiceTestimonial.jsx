@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, MessageSquare, CheckCircle, UploadCloud, Plus, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -195,43 +196,34 @@ const ServiceTestimonial = () => {
   // Mutation
   const testimonialMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
+      // New testimonial images go straight to Cloudinary from the browser —
+      // this avoids routing large or multiple photos through the backend's
+      // serverless function, which rejects anything over ~4.5MB.
+      const testimonialsData = await Promise.all(
+        cards.map(async (card) => {
+          let image = card.existingImage;
+          if (card.newImage) {
+            const uploaded = await uploadToCloudinary(card.newImage, { folder: "chameri/services" });
+            image = uploaded.url;
+          }
 
-      const payloadData = [];
-      let newImageIndex = 0;
-      let newCardImageIndex = 0;
+          let cardImage = card.existingCardImage;
+          if (card.newCardImage) {
+            const uploaded = await uploadToCloudinary(card.newCardImage, { folder: "chameri/services" });
+            cardImage = uploaded.url;
+          }
 
-      cards.forEach(card => {
-        const payloadCard = {
-          quote: card.quote,
-          name: card.name,
-          designation: card.designation,
-          existingImage: card.existingImage,
-          existingCardImage: card.existingCardImage,
-        };
+          return {
+            quote: card.quote,
+            name: card.name,
+            designation: card.designation,
+            image,
+            cardImage,
+          };
+        })
+      );
 
-        if (card.newImage) {
-          payloadCard.newImageIndex = newImageIndex;
-          formData.append("testimonialImages", card.newImage);
-          newImageIndex++;
-        }
-
-        if (card.newCardImage) {
-          payloadCard.newCardImageIndex = newCardImageIndex;
-          formData.append("testimonialCardImages", card.newCardImage);
-          newCardImageIndex++;
-        }
-
-        payloadData.push(payloadCard);
-      });
-
-      formData.append("testimonialsData", JSON.stringify(payloadData));
-
-      return api.put("/services/main/testimonial", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      return api.put("/services/main/testimonial", { heading, subheading, testimonialsData });
     },
     onSuccess: () => {
       testimonialFlash.flash();

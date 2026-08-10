@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, MessageSquare, CheckCircle, UploadCloud, Plus, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -195,42 +196,29 @@ const HomeTestimonial = () => {
   // Mutation
   const testimonialMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      
-      const payloadData = [];
-      let newImageIndex = 0;
-      let newCardImageIndex = 0;
-
-      cards.forEach(card => {
-        const payloadCard = {
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing photos through the backend's serverless function, which
+      // rejects anything over ~4.5MB. Each card's `image`/`cardImage` URLs
+      // are resolved here (existing URL kept, or newly uploaded) and the
+      // fully-resolved list is sent as plain JSON.
+      const testimonialsData = await Promise.all(
+        cards.map(async (card) => ({
           quote: card.quote,
           name: card.name,
           designation: card.designation,
-          existingImage: card.existingImage,
-          existingCardImage: card.existingCardImage,
-        };
+          image: card.newImage
+            ? (await uploadToCloudinary(card.newImage, { folder: "chameri/home" })).url
+            : card.existingImage || "",
+          cardImage: card.newCardImage
+            ? (await uploadToCloudinary(card.newCardImage, { folder: "chameri/home" })).url
+            : card.existingCardImage || "",
+        }))
+      );
 
-        if (card.newImage) {
-          payloadCard.newImageIndex = newImageIndex;
-          formData.append("testimonialImages", card.newImage);
-          newImageIndex++;
-        }
-
-        if (card.newCardImage) {
-          payloadCard.newCardImageIndex = newCardImageIndex;
-          formData.append("testimonialCardImages", card.newCardImage);
-          newCardImageIndex++;
-        }
-
-        payloadData.push(payloadCard);
-      });
-
-      formData.append("testimonialsData", JSON.stringify(payloadData));
-
-      return api.put("/home/main/testimonial", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/home/main/testimonial", {
+        heading,
+        subheading,
+        testimonialsData,
       });
     },
     onSuccess: () => {

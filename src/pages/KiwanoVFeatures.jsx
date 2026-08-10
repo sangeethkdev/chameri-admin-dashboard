@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Star, CheckCircle2, UploadCloud, X } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -103,23 +104,25 @@ const KiwanoVFeatures = () => {
 
   const featureMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("featureHeading", featureHeading);
-      formData.append("featureSubheading", featureSubheading);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large or multiple photos through the backend's serverless
+      // function, which rejects anything over ~4.5MB. Each feature's final
+      // image URL is resolved here so the backend gets a plain JSON array.
+      const resolvedFeatures = await Promise.all(
+        features.map(async (f) => {
+          let imageUrl = f.existingImage || "";
+          if (f.newImage) {
+            const uploaded = await uploadToCloudinary(f.newImage, { folder: "chameri/kiwano-villament" });
+            imageUrl = uploaded.url;
+          }
+          return { name: f.name, image: imageUrl };
+        })
+      );
 
-      const featuresData = features.map((f, i) => ({
-         name: f.name,
-         existingImage: f.existingImage,
-         newImageIndex: f.newImage ? i : null
-      }));
-      formData.append("featuresData", JSON.stringify(featuresData));
-
-      features.forEach(f => {
-         if (f.newImage) formData.append("featureImages", f.newImage);
-      });
-
-      return api.put("/kiwano-villament/main/feature-section", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      return api.put("/kiwano-villament/main/feature-section", {
+        featureHeading,
+        featureSubheading,
+        features: resolvedFeatures,
       });
     },
     onSuccess: () => {

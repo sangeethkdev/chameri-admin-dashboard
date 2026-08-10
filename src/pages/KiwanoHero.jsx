@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Video, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -132,12 +133,21 @@ const KiwanoHero = () => {
 
   const heroMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      if (newVideo) formData.append("video", newVideo);
-      
-      return api.put("/kiwano/main/hero", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New video goes straight to Cloudinary from the browser — this avoids
+      // routing large videos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      let videoUrl = existingVideo;
+      if (newVideo) {
+        const uploaded = await uploadToCloudinary(newVideo, {
+          folder: "chameri/kiwano",
+          resourceType: "video",
+        });
+        videoUrl = uploaded.url;
+      }
+
+      return api.put("/kiwano/main/hero", {
+        heading,
+        video: videoUrl,
       });
     },
     onSuccess: () => {

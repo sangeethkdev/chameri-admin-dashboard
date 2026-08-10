@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Save, Loader2, Image as ImageIcon, CheckCircle2, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -174,15 +175,28 @@ const GalleryHero = () => {
 
   const heroMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("firstText",  firstText);
-      formData.append("secondText", secondText);
-      formData.append("thirdText",  thirdText);
-      if (newFirst)  formData.append("firstImage",  newFirst);
-      if (newSecond) formData.append("secondImage", newSecond);
-      if (newThird)  formData.append("thirdImage",  newThird);
-      return api.put("/gallery/main/hero", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      const uploadIfNew = async (file, existingUrl) => {
+        if (!file) return existingUrl;
+        const { url } = await uploadToCloudinary(file, { folder: "chameri/gallery" });
+        return url;
+      };
+
+      const [firstImage, secondImage, thirdImage] = await Promise.all([
+        uploadIfNew(newFirst, existingFirst),
+        uploadIfNew(newSecond, existingSecond),
+        uploadIfNew(newThird, existingThird),
+      ]);
+
+      return api.put("/gallery/main/hero", {
+        firstText,
+        secondText,
+        thirdText,
+        firstImage,
+        secondImage,
+        thirdImage,
       });
     },
     onSuccess: () => {

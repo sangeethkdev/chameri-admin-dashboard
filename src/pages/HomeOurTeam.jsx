@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, Users, CheckCircle, UploadCloud } from "lucide-react";
+import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -208,23 +209,27 @@ const HomeOurTeam = () => {
   // Mutation
   const teamMutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("heading", heading);
-      formData.append("subheading", subheading);
-      formData.append("separateCardHeading", separateCardHeading);
+      // New images go straight to Cloudinary from the browser — this avoids
+      // routing large photos through the backend's serverless function,
+      // which rejects anything over ~4.5MB.
+      const payload = {
+        heading,
+        subheading,
+        separateCardHeading,
+      };
 
-      CARD_KEYS.forEach((key) => {
-        const card = cardsData[key];
-        formData.append(`${key}Name`, card.name || "");
-        formData.append(`${key}Designation`, card.designation || "");
-        if (card.newImage) {
-          formData.append(`${key}Image`, card.newImage);
-        }
-      });
+      await Promise.all(
+        CARD_KEYS.map(async (key) => {
+          const card = cardsData[key];
+          payload[`${key}Name`] = card.name || "";
+          payload[`${key}Designation`] = card.designation || "";
+          payload[`${key}Image`] = card.newImage
+            ? (await uploadToCloudinary(card.newImage, { folder: "chameri/home" })).url
+            : card.image || "";
+        })
+      );
 
-      return api.put("/home/main/ourteam", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      return api.put("/home/main/ourteam", payload);
     },
     onSuccess: () => {
       teamFlash.flash();
