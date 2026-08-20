@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import {
-  Save, Loader2, Image as ImageIcon, CheckCircle2, X, Plus, UploadCloud,
+  Save, Loader2, Image as ImageIcon, CheckCircle2, X, Plus, UploadCloud, CalendarDays,
 } from "lucide-react";
 import { uploadToCloudinary } from "../lib/cloudinaryUpload";
 
@@ -54,14 +54,15 @@ const FormCard = ({ title, icon: Icon, onSave, isSaving, saved, children }) => (
   </div>
 );
 
+const emptyEvent = () => ({ title: "", date: "", existingImages: [], newImages: [] });
+
 // ── Main Component ───────────────────────────────────────────────────────────
 const GalleryImages = () => {
   const qc = useQueryClient();
-  const fileInputRef = useRef(null);
-  const imagesFlash = useFlashSuccess();
+  const eventFileRefs = useRef([]);
 
-  const [existingImages, setExistingImages] = useState([]);
-  const [newImages, setNewImages] = useState([]); // [{ file, preview }]
+  const [events, setEvents] = useState([]);
+  const flash = useFlashSuccess();
 
   const { data, isLoading } = useQuery({
     queryKey: ["gallery-main"],
@@ -73,47 +74,71 @@ const GalleryImages = () => {
 
   useEffect(() => {
     if (!data) return;
-    setExistingImages(data?.galleryImages || []);
+    const dbEvents = data?.galleryEvents || [];
+    if (dbEvents.length > 0) {
+      setEvents(
+        dbEvents.map((e) => ({
+          title: e.title || "",
+          date: e.date || "",
+          existingImages: e.images || [],
+          newImages: [],
+        }))
+      );
+      return;
+    }
+    // Migration fallback: older documents only have a flat `galleryImages`
+    // pool with no event of their own — seed one event so those images
+    // stay visible instead of disappearing once events take over.
+    const legacyImages = data?.galleryImages || [];
+    setEvents(
+      legacyImages.length > 0
+        ? [{ title: "Gallery", date: "", existingImages: legacyImages, newImages: [] }]
+        : [emptyEvent()]
+    );
   }, [data]);
 
-  const handleFilesChange = (e) => {
-    const files = Array.from(e.target.files);
-    const previews = files.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-    setNewImages((prev) => [...prev, ...previews]);
-    // Reset the input so the same file can be re-selected if removed
-    e.target.value = "";
+  const updateEvent = (i, patch) =>
+    setEvents((prev) => prev.map((ev, idx) => (idx === i ? { ...ev, ...patch } : ev)));
+
+  const handleFilesChange = (i, fileList) => {
+    const files = Array.from(fileList);
+    const previews = files.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    updateEvent(i, { newImages: [...events[i].newImages, ...previews] });
   };
 
-  const removeExisting = (url) =>
-    setExistingImages((prev) => prev.filter((u) => u !== url));
+  const removeExistingImage = (i, url) =>
+    updateEvent(i, { existingImages: events[i].existingImages.filter((u) => u !== url) });
 
-  const removeNew = (index) =>
-    setNewImages((prev) => prev.filter((_, i) => i !== index));
+  const removeNewImage = (i, idx) =>
+    updateEvent(i, { newImages: events[i].newImages.filter((_, n) => n !== idx) });
 
-  const imagesMutation = useMutation({
+  const eventsMutation = useMutation({
     mutationFn: async () => {
       // New images go straight to Cloudinary from the browser — this avoids
       // routing large or multiple photos through the backend's serverless
       // function, which rejects anything over ~4.5MB.
-      const uploaded = await Promise.all(
-        newImages.map(({ file }) => uploadToCloudinary(file, { folder: "chameri/gallery" }))
+      const resolvedEvents = await Promise.all(
+        events.map(async (ev) => {
+          const uploaded = await Promise.all(
+            ev.newImages.map(({ file }) => uploadToCloudinary(file, { folder: "chameri/gallery" }))
+          );
+          return {
+            title: ev.title,
+            date: ev.date,
+            images: [...ev.existingImages, ...uploaded.map((r) => r.url)],
+          };
+        })
       );
-      const newUrls = uploaded.map((r) => r.url);
 
-      return api.put("/gallery/main/images", {
-        galleryImages: [...existingImages, ...newUrls],
-      });
+      return api.put("/gallery/main/events", { galleryEvents: resolvedEvents });
     },
     onSuccess: () => {
-      imagesFlash.flash();
-      setNewImages([]);
+      flash.flash();
+      setEvents((prev) => prev.map((ev) => ({ ...ev, newImages: [] })));
       qc.invalidateQueries(["gallery-main"]);
     },
     onError: (err) =>
-      toast.error(err.response?.data?.message || "Failed to save Gallery Images"),
+      toast.error(err.response?.data?.message || "Failed to save Gallery Events"),
   });
 
   if (isLoading) {
@@ -124,127 +149,173 @@ const GalleryImages = () => {
     );
   }
 
-  const totalCount = existingImages.length + newImages.length;
-
   return (
     <div className="space-y-6 max-w-5xl pb-10">
       {/* Page Header */}
       <div className="bg-dark-800 p-6 rounded-3xl mb-6 shadow-sm border border-surface-border">
-        <h1 className="text-2xl font-bold text-white">Gallery — Images</h1>
+        <h1 className="text-2xl font-bold text-white">Gallery — Events</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Add or remove images from the gallery. No limit — upload as many as you need.
+          Group gallery photos into events. Each event gets its own title, date, and set of images.
         </p>
       </div>
 
       <FormCard
-        title="Gallery Images"
-        icon={ImageIcon}
-        onSave={() => imagesMutation.mutate()}
-        isSaving={imagesMutation.isPending}
-        saved={imagesFlash.saved}
+        title="Gallery Events"
+        icon={CalendarDays}
+        onSave={() => eventsMutation.mutate()}
+        isSaving={eventsMutation.isPending}
+        saved={flash.saved}
       >
-        {/* Stats bar */}
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-gray-400">
-              Images
-            </label>
-            <span className="text-xs font-bold bg-brand-50 text-brand-500 px-2.5 py-0.5 rounded-full">
-              {totalCount} total
-            </span>
-            {newImages.length > 0 && (
-              <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-full">
-                +{newImages.length} new
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
-          >
-            <UploadCloud size={14} />
-            Add Images
-          </button>
+        <div className="space-y-5">
+          {events.map((ev, i) => {
+            const totalCount = ev.existingImages.length + ev.newImages.length;
+            return (
+              <div key={i} className="p-5 rounded-2xl bg-gray-50/70 border border-gray-100 relative space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setEvents((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Remove Event"
+                >
+                  <X size={18} />
+                </button>
+
+                <p className="text-xs font-black uppercase tracking-widest text-brand-500">
+                  Event {String(i + 1).padStart(2, "0")}
+                </p>
+
+                {/* Title + Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pr-8">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">
+                      Event Title
+                    </label>
+                    <input
+                      type="text"
+                      value={ev.title}
+                      onChange={(e) => updateEvent(i, { title: e.target.value })}
+                      placeholder="e.g. Site Handover — May 2026"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">
+                      Date
+                    </label>
+                    <input
+                      type="text"
+                      value={ev.date}
+                      onChange={(e) => updateEvent(i, { date: e.target.value })}
+                      placeholder="e.g. May 2026"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-500 transition-colors bg-gray-50/50 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Images for this event */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                      Images
+                    </label>
+                    <span className="text-xs font-bold bg-brand-50 text-brand-500 px-2.5 py-0.5 rounded-full">
+                      {totalCount} total
+                    </span>
+                    {ev.newImages.length > 0 && (
+                      <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-full">
+                        +{ev.newImages.length} new
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => eventFileRefs.current[i]?.click()}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors"
+                  >
+                    <UploadCloud size={14} />
+                    Add Images
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {ev.existingImages.map((url, idx) => (
+                    <div
+                      key={`ex-${idx}`}
+                      className="relative aspect-square bg-white rounded-xl border border-gray-100 overflow-hidden group shadow-sm"
+                    >
+                      <img src={url} alt={`event-${i}-${idx}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(i, url)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-white/90 text-red-500 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:scale-110"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {ev.newImages.map((img, idx) => (
+                    <div
+                      key={`new-${idx}`}
+                      className="relative aspect-square bg-brand-50 rounded-xl border-2 border-brand-200 overflow-hidden group shadow-sm"
+                    >
+                      <img src={img.preview} alt={`event-${i}-new-${idx}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(i, idx)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-white/90 text-red-500 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:scale-110"
+                      >
+                        <X size={12} />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-brand-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-none">
+                        NEW
+                      </div>
+                    </div>
+                  ))}
+
+                  <div
+                    onClick={() => eventFileRefs.current[i]?.click()}
+                    className="aspect-square rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-brand-300 transition-colors flex flex-col items-center justify-center cursor-pointer text-gray-400 group"
+                  >
+                    <Plus size={18} className="group-hover:scale-110 transition-transform" />
+                  </div>
+                </div>
+
+                <input
+                  type="file"
+                  ref={(el) => (eventFileRefs.current[i] = el)}
+                  onChange={(e) => {
+                    if (e.target.files.length) handleFilesChange(i, e.target.files);
+                    e.target.value = "";
+                  }}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+              </div>
+            );
+          })}
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-
-          {/* Existing images */}
-          {existingImages.map((url, i) => (
-            <div
-              key={`ex-${i}`}
-              className="relative aspect-square bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden group shadow-sm"
-            >
-              <img src={url} alt={`gallery-${i}`} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              <button
-                type="button"
-                onClick={() => removeExisting(url)}
-                className="absolute top-1.5 right-1.5 w-7 h-7 bg-white/90 text-red-500 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:scale-110"
-              >
-                <X size={13} />
-              </button>
-              <div className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white/80 bg-black/40 px-1.5 py-0.5 rounded-md leading-none">
-                #{i + 1}
-              </div>
-            </div>
-          ))}
-
-          {/* New (pending upload) images */}
-          {newImages.map((img, i) => (
-            <div
-              key={`new-${i}`}
-              className="relative aspect-square bg-brand-50 rounded-2xl border-2 border-brand-200 overflow-hidden group shadow-sm"
-            >
-              <img src={img.preview} alt={`new-${i}`} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              <button
-                type="button"
-                onClick={() => removeNew(i)}
-                className="absolute top-1.5 right-1.5 w-7 h-7 bg-white/90 text-red-500 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:scale-110"
-              >
-                <X size={13} />
-              </button>
-              {/* NEW badge */}
-              <div className="absolute bottom-1.5 left-1.5 bg-brand-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none">
-                NEW
-              </div>
-            </div>
-          ))}
-
-          {/* Add more button */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-brand-300 transition-colors flex flex-col items-center justify-center cursor-pointer text-gray-400 group"
-          >
-            <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Plus size={20} className="text-gray-500" />
-            </div>
-            <span className="text-xs font-semibold text-gray-500">Add Images</span>
-          </div>
-        </div>
-
-        {/* Hidden file input — multiple, no limit */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFilesChange}
-          accept="image/*"
-          multiple
-          className="hidden"
-        />
+        <button
+          type="button"
+          onClick={() => setEvents((prev) => [...prev, emptyEvent()])}
+          className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 font-semibold hover:bg-gray-50 hover:border-brand-300 transition-colors"
+        >
+          + Add Event
+        </button>
 
         {/* Empty state */}
-        {totalCount === 0 && (
+        {events.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100">
               <ImageIcon size={28} className="text-gray-300" />
             </div>
-            <p className="text-gray-500 font-semibold text-sm">No images yet</p>
+            <p className="text-gray-500 font-semibold text-sm">No events yet</p>
             <p className="text-gray-400 text-xs mt-1">
-              Click <span className="text-brand-500 font-semibold">Add Images</span> to upload your first gallery image.
+              Click <span className="text-brand-500 font-semibold">+ Add Event</span> to create your first gallery event.
             </p>
           </div>
         )}

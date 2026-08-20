@@ -45,7 +45,7 @@ const navItems = [
     icon: Image,
     children: [
       { label: "Hero Section",    to: "/gallery/hero",   icon: Image },
-      { label: "Gallery Images",  to: "/gallery/images", icon: Image },
+      { label: "Gallery Events",  to: "/gallery/images", icon: Image },
     ],
   },
   

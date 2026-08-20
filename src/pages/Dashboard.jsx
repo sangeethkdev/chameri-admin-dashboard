@@ -173,7 +173,7 @@ const Dashboard = () => {
         <h3 className="text-white font-semibold mb-4">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
           {[
-            { label: "Add Gallery Images", to: "/gallery/images", icon: ImagePlus, color: "bg-brand-500 hover:bg-brand-600" },
+            { label: "Add Gallery Event", to: "/gallery/images", icon: ImagePlus, color: "bg-brand-500 hover:bg-brand-600" },
             { label: "Manage Users", to: "/users", icon: Users, color: "bg-cyan-600 hover:bg-cyan-700" },
             { label: "Add Work Logo", to: "/about/worklogo", icon: BadgePlus, color: "bg-emerald-600 hover:bg-emerald-700" },
           ].map(({ label, to, icon: Icon, color }) => (
