@@ -199,6 +199,7 @@ const KiwanoVHighlights = () => {
 
   const [heading, setHeading] = useState("");
   const [subheading, setSubheading] = useState("");
+  const [date, setDate] = useState("");
 
   const [existingVideo, setExistingVideo] = useState("");
   const [newVideo, setNewVideo] = useState(null);
@@ -219,6 +220,7 @@ const KiwanoVHighlights = () => {
     if (!data) return;
     setHeading(data?.highlightsSection?.heading || "");
     setSubheading(data?.highlightsSection?.subheading || "");
+    setDate(data?.highlightsSection?.date || "");
     setExistingVideo(data?.highlightsSection?.video || "");
     setExistingImages(data?.highlightsSection?.images || []);
   }, [data]);
@@ -255,6 +257,7 @@ const KiwanoVHighlights = () => {
       return api.put("/kiwano-villament/main/highlights-section", {
         heading,
         subheading,
+        date,
         video: videoUrl,
         images: imageUrls,
       });
@@ -310,6 +313,14 @@ const KiwanoVHighlights = () => {
               value={subheading}
               onChange={(e) => setSubheading(e.target.value)}
               placeholder="e.g. A closer look at what makes this property special..."
+            />
+          </div>
+          <div className="md:col-span-2">
+            <InputField
+              label="Date Badge"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              placeholder="e.g. May 2026"
             />
           </div>
           <div className="md:col-span-2">
