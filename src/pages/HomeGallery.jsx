@@ -77,6 +77,26 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
+// --- Select Field Component ---
+const SelectField = ({ label, value, onChange, options }) => (
+  <div>
+    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={onChange}
+      className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 block p-3 transition-colors outline-none"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
 // --- Fully Controlled Gallery Card ---
 // No local useState — all data lives in parent. This avoids sync/loop bugs entirely.
 const GalleryCardManager = ({ index, cardData, onUpdate }) => {
@@ -129,6 +149,16 @@ const GalleryCardManager = ({ index, cardData, onUpdate }) => {
           value={cardData.date || ""}
           onChange={(e) => onUpdate({ ...cardData, date: e.target.value })}
           placeholder="e.g. October 2023"
+        />
+        <SelectField
+          label="Project"
+          value={cardData.project || ""}
+          onChange={(e) => onUpdate({ ...cardData, project: e.target.value })}
+          options={[
+            { value: "", label: "None" },
+            { value: "kiwano", label: "Kiwano Villa" },
+            { value: "kiwano-villament", label: "Kiwano Villament" },
+          ]}
         />
       </div>
 
@@ -200,7 +230,7 @@ const GalleryCardManager = ({ index, cardData, onUpdate }) => {
 // ── Main Component ───────────────────────────────────────────────────────────
 const CARD_KEYS = ["card1", "card2", "card3", "card4", "card5"];
 
-const emptyCard = () => ({ name: "", place: "", date: "", existingImages: [], newImages: [] });
+const emptyCard = () => ({ name: "", place: "", date: "", project: "", existingImages: [], newImages: [] });
 
 const HomeGallery = () => {
   const qc = useQueryClient();
@@ -260,6 +290,7 @@ const HomeGallery = () => {
           payload[`${key}Name`] = card.name || "";
           payload[`${key}Place`] = card.place || "";
           payload[`${key}Date`] = card.date || "";
+          payload[`${key}Project`] = card.project || "";
 
           const uploaded = await Promise.all(
             (card.newImages || []).map((img) =>
