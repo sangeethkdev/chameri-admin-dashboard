@@ -4,6 +4,26 @@ import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, MessageSquare, CheckCircle, UploadCloud, Plus, X } from "lucide-react";
 import { uploadToCloudinary } from "../lib/cloudinaryUpload";
+import CardMediaPicker from "../components/CardMediaPicker";
+import { getYoutubeId, MAX_VIDEO_BYTES } from "../lib/cardMedia";
+
+const makeBlankCard = (id) => ({
+  id,
+  quote: "",
+  name: "",
+  designation: "",
+  existingImage: "",
+  newImage: null,
+  preview: "",
+  cardMediaType: "image",
+  existingCardImage: "",
+  newCardImage: null,
+  cardImagePreview: "",
+  existingCardVideo: "",
+  newCardVideo: null,
+  cardVideoPreview: "",
+  cardYoutubeUrl: "",
+});
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -118,33 +138,22 @@ const HomeTestimonial = () => {
     let initialCards = [];
     if (data.testimonial?.cards && data.testimonial.cards.length > 0) {
       initialCards = data.testimonial.cards.map((card, idx) => ({
-        id: Date.now() + idx,
+        ...makeBlankCard(Date.now() + idx),
         quote: card.quote || "",
         name: card.name || "",
         designation: card.designation || "",
         existingImage: card.image || "",
-        newImage: null,
-        preview: "",
+        // Older cards have no cardMediaType — treat them as images.
+        cardMediaType: card.cardMediaType || "image",
         existingCardImage: card.cardImage || "",
-        newCardImage: null,
-        cardImagePreview: "",
+        existingCardVideo: card.cardVideo || "",
+        cardYoutubeUrl: card.cardYoutubeUrl || "",
       }));
     }
 
     // Ensure we have at least MIN_CARDS
     while (initialCards.length < MIN_CARDS) {
-      initialCards.push({
-        id: Date.now() + initialCards.length,
-        quote: "",
-        name: "",
-        designation: "",
-        existingImage: "",
-        newImage: null,
-        preview: "",
-        existingCardImage: "",
-        newCardImage: null,
-        cardImagePreview: "",
-      });
+      initialCards.push(makeBlankCard(Date.now() + initialCards.length));
     }
 
     setCards(initialCards);
@@ -152,21 +161,7 @@ const HomeTestimonial = () => {
 
   // Handlers
   const addCard = () => {
-    setCards([
-      ...cards,
-      {
-        id: Date.now(),
-        quote: "",
-        name: "",
-        designation: "",
-        existingImage: "",
-        newImage: null,
-        preview: "",
-        existingCardImage: "",
-        newCardImage: null,
-        cardImagePreview: "",
-      },
-    ]);
+    setCards([...cards, makeBlankCard(Date.now())]);
   };
 
   const removeCard = (id) => {
@@ -193,26 +188,69 @@ const HomeTestimonial = () => {
     setCards(cards.map(c => c.id === id ? { ...c, newCardImage: file, cardImagePreview } : c));
   };
 
+  const handleCardVideoChange = (id, file) => {
+    if (!file) return;
+    // Cloudinary's free tier caps a single upload at 100MB; catching it here
+    // gives a clear message instead of a failed request after a long upload.
+    if (file.size > MAX_VIDEO_BYTES) {
+      toast.error("Video is too large. Please keep it under 100MB.");
+      return;
+    }
+    const cardVideoPreview = URL.createObjectURL(file);
+    setCards(cards.map(c => c.id === id ? { ...c, newCardVideo: file, cardVideoPreview } : c));
+  };
+
   // Mutation
   const testimonialMutation = useMutation({
     mutationFn: async () => {
+      // Reject malformed YouTube links up front — otherwise the card saves
+      // fine and then silently renders nothing on the public site.
+      const badYoutube = cards.findIndex(
+        (c) => c.cardMediaType === "youtube" && !getYoutubeId(c.cardYoutubeUrl)
+      );
+      if (badYoutube !== -1) {
+        throw new Error(`Testimonial ${badYoutube + 1}: enter a valid YouTube link.`);
+      }
+
       // New images go straight to Cloudinary from the browser — this avoids
       // routing photos through the backend's serverless function, which
       // rejects anything over ~4.5MB. Each card's `image`/`cardImage` URLs
       // are resolved here (existing URL kept, or newly uploaded) and the
       // fully-resolved list is sent as plain JSON.
       const testimonialsData = await Promise.all(
-        cards.map(async (card) => ({
-          quote: card.quote,
-          name: card.name,
-          designation: card.designation,
-          image: card.newImage
-            ? (await uploadToCloudinary(card.newImage, { folder: "chameri/home" })).url
-            : card.existingImage || "",
-          cardImage: card.newCardImage
-            ? (await uploadToCloudinary(card.newCardImage, { folder: "chameri/home" })).url
-            : card.existingCardImage || "",
-        }))
+        cards.map(async (card) => {
+          const mediaType = card.cardMediaType || "image";
+
+          // Only upload/send the asset for the selected media type — the
+          // backend clears the other two, so uploading them would just
+          // orphan files in Cloudinary.
+          const cardImage =
+            mediaType === "image"
+              ? card.newCardImage
+                ? (await uploadToCloudinary(card.newCardImage, { folder: "chameri/home" })).url
+                : card.existingCardImage || ""
+              : "";
+
+          const cardVideo =
+            mediaType === "video"
+              ? card.newCardVideo
+                ? (await uploadToCloudinary(card.newCardVideo, { folder: "chameri/home", resourceType: "video" })).url
+                : card.existingCardVideo || ""
+              : "";
+
+          return {
+            quote: card.quote,
+            name: card.name,
+            designation: card.designation,
+            image: card.newImage
+              ? (await uploadToCloudinary(card.newImage, { folder: "chameri/home" })).url
+              : card.existingImage || "",
+            cardMediaType: mediaType,
+            cardImage,
+            cardVideo,
+            cardYoutubeUrl: mediaType === "youtube" ? (card.cardYoutubeUrl || "").trim() : "",
+          };
+        })
       );
 
       return api.put("/home/main/testimonial", {
@@ -225,7 +263,9 @@ const HomeTestimonial = () => {
       testimonialFlash.flash();
       qc.invalidateQueries(["home-main"]);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Failed to save Testimonial section"),
+    // err.message carries the client-side validation failures thrown above,
+    // which have no response body of their own.
+    onError: (err) => toast.error(err.response?.data?.message || err.message || "Failed to save Testimonial section"),
   });
 
   if (isLoading) {
@@ -312,37 +352,18 @@ const HomeTestimonial = () => {
                 </div>
               </div>
               
-              {/* Card Background Image Upload */}
-              <div className="pt-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">Card Image</label>
-                <div
-                  className="relative w-full h-32 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group/cardimg"
-                >
-                  {(card.cardImagePreview || card.existingCardImage) ? (
-                    <>
-                      <img
-                        src={card.cardImagePreview || card.existingCardImage}
-                        alt={`Card BG ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/cardimg:opacity-100 transition-opacity flex items-center justify-center text-white">
-                        <UploadCloud size={20} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center">
-                      <UploadCloud size={20} className="mx-auto mb-2 text-gray-400" />
-                      <span className="text-xs font-medium text-gray-500">Upload Card Image</span>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    onChange={e => handleCardImageChange(card.id, e.target.files[0])}
-                  />
-                </div>
-              </div>
+              <CardMediaPicker
+                mediaType={card.cardMediaType}
+                onMediaTypeChange={(v) => updateCard(card.id, "cardMediaType", v)}
+                imagePreview={card.cardImagePreview}
+                existingImage={card.existingCardImage}
+                onImageChange={(file) => handleCardImageChange(card.id, file)}
+                videoPreview={card.cardVideoPreview}
+                existingVideo={card.existingCardVideo}
+                onVideoChange={(file) => handleCardVideoChange(card.id, file)}
+                youtubeUrl={card.cardYoutubeUrl}
+                onYoutubeUrlChange={(v) => updateCard(card.id, "cardYoutubeUrl", v)}
+              />
 
               <InputField label="Quote" value={card.quote} onChange={e => updateCard(card.id, "quote", e.target.value)} placeholder="e.g. This team is amazing!" isTextarea />
               <InputField label="Name" value={card.name} onChange={e => updateCard(card.id, "name", e.target.value)} placeholder="e.g. Jane Doe" />

@@ -4,6 +4,8 @@ import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
 import { Loader2, MessageSquare, CheckCircle, UploadCloud, Plus, X, Star } from "lucide-react";
 import { uploadToCloudinary } from "../lib/cloudinaryUpload";
+import CardMediaPicker from "../components/CardMediaPicker";
+import { getYoutubeId, MAX_VIDEO_BYTES } from "../lib/cardMedia";
 
 // --- Custom Hook for flash success ---
 const useFlashSuccess = (duration = 2000) => {
@@ -123,6 +125,13 @@ const emptyCard = (idx = 0) => ({
   existingVideo: "",
   newVideo: null,
   videoPreview: "",
+  // "video" is the default because every review card was a video before
+  // the image and YouTube options existed.
+  mediaType: "video",
+  existingCardImage: "",
+  newCardImage: null,
+  cardImagePreview: "",
+  youtubeUrl: "",
 });
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -158,6 +167,12 @@ const ClientReview = () => {
         existingVideo: card.video || "",
         newVideo: null,
         videoPreview: "",
+        // Older cards have no mediaType — they were all videos.
+        mediaType: card.mediaType || "video",
+        existingCardImage: card.cardImage || "",
+        newCardImage: null,
+        cardImagePreview: "",
+        youtubeUrl: card.youtubeUrl || "",
       }));
     }
 
@@ -190,12 +205,34 @@ const ClientReview = () => {
 
   const handleVideoChange = (id, file) => {
     if (!file) return;
+    // Caught here so the editor sees a clear message instead of a failed
+    // request after a long upload.
+    if (file.size > MAX_VIDEO_BYTES) {
+      toast.error("Video is too large. Please keep it under 100MB.");
+      return;
+    }
     const videoPreview = URL.createObjectURL(file);
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newVideo: file, videoPreview } : c)));
   };
 
+  // The card background image, distinct from the client photo above.
+  const handleCardImageChange = (id, file) => {
+    if (!file) return;
+    const cardImagePreview = URL.createObjectURL(file);
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newCardImage: file, cardImagePreview } : c)));
+  };
+
   const reviewMutation = useMutation({
     mutationFn: async () => {
+      // Reject malformed YouTube links up front — otherwise the card saves
+      // fine and then silently renders nothing on the public site.
+      const badYoutube = cards.findIndex(
+        (c) => c.mediaType === "youtube" && !getYoutubeId(c.youtubeUrl)
+      );
+      if (badYoutube !== -1) {
+        throw new Error(`Review ${badYoutube + 1}: enter a valid YouTube link.`);
+      }
+
       // New photos/videos go straight to Cloudinary from the browser — this
       // avoids routing them through the backend's serverless function, which
       // rejects anything over ~4.5MB. Each card resolves to a final
@@ -214,13 +251,33 @@ const ClientReview = () => {
             imageUrl = uploaded.url;
           }
 
-          let videoUrl = card.existingVideo || "";
-          if (card.newVideo) {
-            const uploaded = await uploadToCloudinary(card.newVideo, {
-              folder: "chameri/testimonials",
-              resourceType: "auto",
-            });
-            videoUrl = uploaded.url;
+          const mediaType = card.mediaType || "video";
+
+          // Only upload/send the asset for the selected media type — the
+          // backend clears the other two, so uploading them would just
+          // orphan files in Cloudinary.
+          let videoUrl = "";
+          if (mediaType === "video") {
+            videoUrl = card.existingVideo || "";
+            if (card.newVideo) {
+              const uploaded = await uploadToCloudinary(card.newVideo, {
+                folder: "chameri/testimonials",
+                resourceType: "auto",
+              });
+              videoUrl = uploaded.url;
+            }
+          }
+
+          let cardImageUrl = "";
+          if (mediaType === "image") {
+            cardImageUrl = card.existingCardImage || "";
+            if (card.newCardImage) {
+              const uploaded = await uploadToCloudinary(card.newCardImage, {
+                folder: "chameri/testimonials",
+                resourceType: "auto",
+              });
+              cardImageUrl = uploaded.url;
+            }
           }
 
           return {
@@ -231,6 +288,9 @@ const ClientReview = () => {
             rating: card.rating,
             image: imageUrl,
             video: videoUrl,
+            mediaType,
+            cardImage: cardImageUrl,
+            youtubeUrl: mediaType === "youtube" ? (card.youtubeUrl || "").trim() : "",
           };
         })
       );
@@ -241,7 +301,9 @@ const ClientReview = () => {
       reviewFlash.flash();
       qc.invalidateQueries(["testimonials-main"]);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Failed to save Client Review section"),
+    // err.message carries the client-side validation failures thrown above,
+    // which have no response body of their own.
+    onError: (err) => toast.error(err.response?.data?.message || err.message || "Failed to save Client Review section"),
   });
 
   if (isLoading) {
@@ -311,37 +373,19 @@ const ClientReview = () => {
                 </div>
               </div>
 
-              {/* Video Upload */}
-              <div className="pt-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">Video</label>
-                <div className="relative w-full h-32 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group/video">
-                  {(card.videoPreview || card.existingVideo) ? (
-                    <>
-                      <video
-                        src={card.videoPreview || card.existingVideo}
-                        className="w-full h-full object-cover"
-                        muted
-                        loop
-                        autoPlay
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/video:opacity-100 transition-opacity flex items-center justify-center text-white">
-                        <UploadCloud size={20} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center">
-                      <UploadCloud size={20} className="mx-auto mb-2 text-gray-400" />
-                      <span className="text-xs font-medium text-gray-500">Upload Video (optional)</span>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="video/*"
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    onChange={(e) => handleVideoChange(card.id, e.target.files[0])}
-                  />
-                </div>
-              </div>
+              <CardMediaPicker
+                label="Card Media"
+                mediaType={card.mediaType}
+                onMediaTypeChange={(v) => updateCard(card.id, "mediaType", v)}
+                imagePreview={card.cardImagePreview}
+                existingImage={card.existingCardImage}
+                onImageChange={(file) => handleCardImageChange(card.id, file)}
+                videoPreview={card.videoPreview}
+                existingVideo={card.existingVideo}
+                onVideoChange={(file) => handleVideoChange(card.id, file)}
+                youtubeUrl={card.youtubeUrl}
+                onYoutubeUrlChange={(v) => updateCard(card.id, "youtubeUrl", v)}
+              />
 
               <InputField
                 label="Quote"
