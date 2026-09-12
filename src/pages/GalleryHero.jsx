@@ -67,12 +67,18 @@ const InputField = ({ label, value, onChange, placeholder }) => (
 );
 
 // --- Image Upload Field ---
-const ImageUploadField = ({ label, preview, existingUrl, fileInputRef, onChange }) => (
+const ImageUploadField = ({
+  label, preview, existingUrl, fileInputRef, onChange,
+  // The mobile slot holds a portrait crop, so its frame previews at 9:16
+  // rather than the landscape default.
+  aspectClass = "aspect-video",
+  frameWidthClass = "w-full",
+}) => (
   <div>
     <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
     <div
       onClick={() => fileInputRef.current?.click()}
-      className="relative w-full aspect-video rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group"
+      className={`relative ${frameWidthClass} ${aspectClass} rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group`}
     >
       {(preview || existingUrl) ? (
         <>
@@ -96,12 +102,16 @@ const ImageUploadField = ({ label, preview, existingUrl, fileInputRef, onChange 
 );
 
 // ── Slide Row ────────────────────────────────────────────────────────────────
-const SlideRow = ({ number, text, setText, preview, existingUrl, fileInputRef, onFileChange }) => (
+const SlideRow = ({
+  number, text, setText,
+  preview, existingUrl, fileInputRef, onFileChange,
+  mobilePreview, mobileExistingUrl, mobileFileInputRef, onMobileFileChange,
+}) => (
   <div className="border border-gray-100 rounded-2xl p-5 bg-gray-50/50 space-y-4">
     <p className="text-sm font-bold text-gray-700 mb-1">Slide {number}</p>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       <ImageUploadField
-        label={`Image ${number}`}
+        label={`Image ${number} (Desktop)`}
         preview={preview}
         existingUrl={existingUrl}
         fileInputRef={fileInputRef}
@@ -113,6 +123,22 @@ const SlideRow = ({ number, text, setText, preview, existingUrl, fileInputRef, o
         onChange={(e) => setText(e.target.value)}
         placeholder={`e.g. Caption or description for slide ${number}`}
       />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <ImageUploadField
+          label={`Image ${number} (Mobile)`}
+          preview={mobilePreview}
+          existingUrl={mobileExistingUrl}
+          fileInputRef={mobileFileInputRef}
+          onChange={onMobileFileChange}
+          aspectClass="aspect-[9/16]"
+          frameWidthClass="w-40"
+        />
+        <p className="text-xs text-gray-400 mt-1.5">
+          Optional — a portrait crop for phones. Leave empty to reuse the desktop image.
+        </p>
+      </div>
     </div>
   </div>
 );
@@ -126,6 +152,11 @@ const GalleryHero = () => {
   const firstRef  = useRef(null);
   const secondRef = useRef(null);
   const thirdRef  = useRef(null);
+
+  // Refs for the optional mobile (portrait) file inputs
+  const firstMobRef  = useRef(null);
+  const secondMobRef = useRef(null);
+  const thirdMobRef  = useRef(null);
 
   // Text state
   const [firstText,  setFirstText]  = useState("");
@@ -147,6 +178,20 @@ const GalleryHero = () => {
   const [previewSecond, setPreviewSecond] = useState("");
   const [previewThird,  setPreviewThird]  = useState("");
 
+  /* Optional mobile (portrait) image per slide — same existing/new/preview
+     trio as above. Left empty, the public site falls back to the main image. */
+  const [existingFirstMob,  setExistingFirstMob]  = useState("");
+  const [existingSecondMob, setExistingSecondMob] = useState("");
+  const [existingThirdMob,  setExistingThirdMob]  = useState("");
+
+  const [newFirstMob,  setNewFirstMob]  = useState(null);
+  const [newSecondMob, setNewSecondMob] = useState(null);
+  const [newThirdMob,  setNewThirdMob]  = useState(null);
+
+  const [previewFirstMob,  setPreviewFirstMob]  = useState("");
+  const [previewSecondMob, setPreviewSecondMob] = useState("");
+  const [previewThirdMob,  setPreviewThirdMob]  = useState("");
+
   const { data, isLoading } = useQuery({
     queryKey: ["gallery-main"],
     queryFn: async () => {
@@ -163,6 +208,9 @@ const GalleryHero = () => {
     setExistingFirst(data?.heroSection?.first?.image   || "");
     setExistingSecond(data?.heroSection?.second?.image || "");
     setExistingThird(data?.heroSection?.third?.image   || "");
+    setExistingFirstMob(data?.heroSection?.first?.mobileImage   || "");
+    setExistingSecondMob(data?.heroSection?.second?.mobileImage || "");
+    setExistingThirdMob(data?.heroSection?.third?.mobileImage   || "");
   }, [data]);
 
   const handleFile = (setNew, setPreview) => (e) => {
@@ -184,10 +232,16 @@ const GalleryHero = () => {
         return url;
       };
 
-      const [firstImage, secondImage, thirdImage] = await Promise.all([
+      const [
+        firstImage, secondImage, thirdImage,
+        firstMobileImage, secondMobileImage, thirdMobileImage,
+      ] = await Promise.all([
         uploadIfNew(newFirst, existingFirst),
         uploadIfNew(newSecond, existingSecond),
         uploadIfNew(newThird, existingThird),
+        uploadIfNew(newFirstMob, existingFirstMob),
+        uploadIfNew(newSecondMob, existingSecondMob),
+        uploadIfNew(newThirdMob, existingThirdMob),
       ]);
 
       return api.put("/gallery/main/hero", {
@@ -197,6 +251,9 @@ const GalleryHero = () => {
         firstImage,
         secondImage,
         thirdImage,
+        firstMobileImage,
+        secondMobileImage,
+        thirdMobileImage,
       });
     },
     onSuccess: () => {
@@ -207,6 +264,12 @@ const GalleryHero = () => {
       setPreviewFirst("");
       setPreviewSecond("");
       setPreviewThird("");
+      setNewFirstMob(null);
+      setNewSecondMob(null);
+      setNewThirdMob(null);
+      setPreviewFirstMob("");
+      setPreviewSecondMob("");
+      setPreviewThirdMob("");
       qc.invalidateQueries(["gallery-main"]);
     },
     onError: (err) =>
@@ -246,6 +309,10 @@ const GalleryHero = () => {
           existingUrl={existingFirst}
           fileInputRef={firstRef}
           onFileChange={handleFile(setNewFirst, setPreviewFirst)}
+          mobilePreview={previewFirstMob}
+          mobileExistingUrl={existingFirstMob}
+          mobileFileInputRef={firstMobRef}
+          onMobileFileChange={handleFile(setNewFirstMob, setPreviewFirstMob)}
         />
         <SlideRow
           number={2}
@@ -255,6 +322,10 @@ const GalleryHero = () => {
           existingUrl={existingSecond}
           fileInputRef={secondRef}
           onFileChange={handleFile(setNewSecond, setPreviewSecond)}
+          mobilePreview={previewSecondMob}
+          mobileExistingUrl={existingSecondMob}
+          mobileFileInputRef={secondMobRef}
+          onMobileFileChange={handleFile(setNewSecondMob, setPreviewSecondMob)}
         />
         <SlideRow
           number={3}
@@ -264,6 +335,10 @@ const GalleryHero = () => {
           existingUrl={existingThird}
           fileInputRef={thirdRef}
           onFileChange={handleFile(setNewThird, setPreviewThird)}
+          mobilePreview={previewThirdMob}
+          mobileExistingUrl={existingThirdMob}
+          mobileFileInputRef={thirdMobRef}
+          onMobileFileChange={handleFile(setNewThirdMob, setPreviewThirdMob)}
         />
       </FormCard>
     </div>

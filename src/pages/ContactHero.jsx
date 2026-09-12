@@ -67,12 +67,18 @@ const InputField = ({ label, value, onChange, placeholder }) => (
 );
 
 // --- Image Upload Field ---
-const ImageUploadField = ({ label, preview, existingUrl, fileInputRef, onChange }) => (
+const ImageUploadField = ({
+  label, preview, existingUrl, fileInputRef, onChange,
+  // The mobile slot holds a portrait crop, so its frame previews at 9:16
+  // rather than the landscape default.
+  aspectClass = "aspect-video",
+  frameWidthClass = "w-full",
+}) => (
   <div>
     <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
     <div
       onClick={() => fileInputRef.current?.click()}
-      className="relative w-full aspect-video rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group"
+      className={`relative ${frameWidthClass} ${aspectClass} rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group`}
     >
       {(preview || existingUrl) ? (
         <>
@@ -101,11 +107,18 @@ const ContactHero = () => {
   const heroFlash = useFlashSuccess();
 
   const imageRef = useRef(null);
+  const mobileImageRef = useRef(null);
 
   const [heading, setHeading] = useState("");
   const [existingImage, setExistingImage] = useState("");
   const [newImage, setNewImage] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
+
+  /* Optional portrait crop for phones. Empty means the public site reuses the
+     desktop hero image, which is how every page behaved before this field. */
+  const [existingMobileImage, setExistingMobileImage] = useState("");
+  const [newMobileImage, setNewMobileImage] = useState(null);
+  const [previewMobileImage, setPreviewMobileImage] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["contact-main"],
@@ -119,15 +132,18 @@ const ContactHero = () => {
     if (!data) return;
     setHeading(data?.heroSection?.heading || "");
     setExistingImage(data?.heroSection?.image || "");
+    setExistingMobileImage(data?.heroSection?.mobileImage || "");
   }, [data]);
 
-  const handleFile = (e) => {
+  const makeFileHandler = (setFile, setPreview) => (e) => {
     const file = e.target.files[0];
     if (file) {
-      setNewImage(file);
-      setPreviewImage(URL.createObjectURL(file));
+      setFile(file);
+      setPreview(URL.createObjectURL(file));
     }
   };
+  const handleFile = makeFileHandler(setNewImage, setPreviewImage);
+  const handleMobileFile = makeFileHandler(setNewMobileImage, setPreviewMobileImage);
 
   const heroMutation = useMutation({
     mutationFn: async () => {
@@ -137,13 +153,18 @@ const ContactHero = () => {
       const image = newImage
         ? (await uploadToCloudinary(newImage, { folder: "chameri/contact" })).url
         : existingImage;
+      const mobileImage = newMobileImage
+        ? (await uploadToCloudinary(newMobileImage, { folder: "chameri/contact" })).url
+        : existingMobileImage;
 
-      return api.put("/contact-main/main/hero", { heading, image });
+      return api.put("/contact-main/main/hero", { heading, image, mobileImage });
     },
     onSuccess: () => {
       heroFlash.flash();
       setNewImage(null);
       setPreviewImage("");
+      setNewMobileImage(null);
+      setPreviewMobileImage("");
       qc.invalidateQueries(["contact-main"]);
     },
     onError: (err) =>
@@ -184,12 +205,26 @@ const ContactHero = () => {
           />
           <div className="md:col-span-2">
             <ImageUploadField
-              label="Hero Image"
+              label="Hero Image (Desktop)"
               preview={previewImage}
               existingUrl={existingImage}
               fileInputRef={imageRef}
               onChange={handleFile}
             />
+          </div>
+          <div className="md:col-span-2">
+            <ImageUploadField
+              label="Hero Image (Mobile)"
+              preview={previewMobileImage}
+              existingUrl={existingMobileImage}
+              fileInputRef={mobileImageRef}
+              onChange={handleMobileFile}
+              aspectClass="aspect-[9/16]"
+              frameWidthClass="w-40"
+            />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Optional — a portrait crop for phones. Leave empty to reuse the desktop image.
+            </p>
           </div>
         </div>
       </FormCard>
