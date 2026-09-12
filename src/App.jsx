@@ -51,6 +51,7 @@ import ClientReview from "./pages/ClientReview";
 import ServiceCards from "./pages/ServiceCards";
 import ServiceTestimonial from "./pages/ServiceTestimonial";
 import ContactHero from "./pages/ContactHero";
+import ContactEnquiries from "./pages/ContactEnquiries";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -159,6 +160,7 @@ function App() {
                 <Route path="/testimonials/review" element={<ClientReview />} />
                 {/* Contacts Routes */}
                 <Route path="/contacts/hero" element={<ContactHero />} />
+                <Route path="/contacts/enquiries" element={<ContactEnquiries />} />
                 {/* Admin-only routes */}
                 <Route element={<AdminOnlyRoute />}>
                   <Route path="/users" element={<UserManagement />} />

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderOpen, Briefcase, MessageSquare,
   FileText, Star, LogOut, ChevronRight, Zap,
   ChevronUp, ShieldCheck, Home, Image, Info, HelpCircle, LayoutGrid, X,
-  Sparkles,
+  Sparkles, Inbox,
 } from "lucide-react";
 
 // ─── Nav Structure ────────────────────────────────────────────────────────────
@@ -102,7 +102,14 @@ const navItems = [
       { label: "Client Review", to: "/testimonials/review", icon: MessageSquare },
     ],
   },
-  { label: "Contacts", to: "/contacts/hero", icon: MessageSquare },
+  {
+    label: "Contacts",
+    icon: MessageSquare,
+    children: [
+      { label: "Hero Section", to: "/contacts/hero", icon: Image },
+      { label: "Enquiries", to: "/contacts/enquiries", icon: Inbox },
+    ],
+  },
   { label: "User Management", to: "/users", icon: ShieldCheck, adminOnly: true },
 ];
 
