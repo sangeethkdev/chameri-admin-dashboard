@@ -132,6 +132,12 @@ const emptyCard = (idx = 0) => ({
   newCardImage: null,
   cardImagePreview: "",
   youtubeUrl: "",
+  existingCover: "",
+  newCover: null,
+  coverPreview: "",
+  existingMobileCover: "",
+  newMobileCover: null,
+  mobileCoverPreview: "",
 });
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -173,6 +179,12 @@ const ClientReview = () => {
         newCardImage: null,
         cardImagePreview: "",
         youtubeUrl: card.youtubeUrl || "",
+        existingCover: card.coverImage || "",
+        newCover: null,
+        coverPreview: "",
+        existingMobileCover: card.coverImageMobile || "",
+        newMobileCover: null,
+        mobileCoverPreview: "",
       }));
     }
 
@@ -220,6 +232,27 @@ const ClientReview = () => {
     if (!file) return;
     const cardImagePreview = URL.createObjectURL(file);
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newCardImage: file, cardImagePreview } : c)));
+  };
+
+  // Cover shown on video/YouTube cards in place of the frame or thumbnail.
+  const handleCoverChange = (id, file) => {
+    if (!file) return;
+    const coverPreview = URL.createObjectURL(file);
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newCover: file, coverPreview } : c)));
+  };
+
+  const removeCover = (id) => {
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newCover: null, coverPreview: "", existingCover: "" } : c)));
+  };
+
+  const handleMobileCoverChange = (id, file) => {
+    if (!file) return;
+    const mobileCoverPreview = URL.createObjectURL(file);
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newMobileCover: file, mobileCoverPreview } : c)));
+  };
+
+  const removeMobileCover = (id) => {
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, newMobileCover: null, mobileCoverPreview: "", existingMobileCover: "" } : c)));
   };
 
   const reviewMutation = useMutation({
@@ -280,6 +313,29 @@ const ClientReview = () => {
             }
           }
 
+          // Covers only apply to playable media; image cards drop theirs.
+          let coverImageUrl = "";
+          if (mediaType !== "image") {
+            coverImageUrl = card.existingCover || "";
+            if (card.newCover) {
+              const uploaded = await uploadToCloudinary(card.newCover, {
+                folder: "chameri/testimonials",
+              });
+              coverImageUrl = uploaded.url;
+            }
+          }
+
+          let coverImageMobileUrl = "";
+          if (mediaType !== "image") {
+            coverImageMobileUrl = card.existingMobileCover || "";
+            if (card.newMobileCover) {
+              const uploaded = await uploadToCloudinary(card.newMobileCover, {
+                folder: "chameri/testimonials",
+              });
+              coverImageMobileUrl = uploaded.url;
+            }
+          }
+
           return {
             _id: card._id,
             quote: card.quote,
@@ -291,6 +347,8 @@ const ClientReview = () => {
             mediaType,
             cardImage: cardImageUrl,
             youtubeUrl: mediaType === "youtube" ? (card.youtubeUrl || "").trim() : "",
+            coverImage: coverImageUrl,
+            coverImageMobile: coverImageMobileUrl,
           };
         })
       );
@@ -385,6 +443,14 @@ const ClientReview = () => {
                 onVideoChange={(file) => handleVideoChange(card.id, file)}
                 youtubeUrl={card.youtubeUrl}
                 onYoutubeUrlChange={(v) => updateCard(card.id, "youtubeUrl", v)}
+                coverPreview={card.coverPreview}
+                existingCover={card.existingCover}
+                onCoverChange={(file) => handleCoverChange(card.id, file)}
+                onCoverRemove={() => removeCover(card.id)}
+                mobileCoverPreview={card.mobileCoverPreview}
+                existingMobileCover={card.existingMobileCover}
+                onMobileCoverChange={(file) => handleMobileCoverChange(card.id, file)}
+                onMobileCoverRemove={() => removeMobileCover(card.id)}
               />
 
               <InputField

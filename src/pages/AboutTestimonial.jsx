@@ -24,6 +24,12 @@ const makeBlankCard = () => ({
   newCardVideo: null,
   cardVideoPreview: "",
   cardYoutubeUrl: "",
+  existingCover: "",
+  newCover: null,
+  coverPreview: "",
+  existingMobileCover: "",
+  newMobileCover: null,
+  mobileCoverPreview: "",
 });
 
 // --- Custom Hook ---
@@ -138,6 +144,8 @@ const AboutTestimonial = () => {
         existingCardImage: c.cardImage || "",
         existingCardVideo: c.cardVideo || "",
         cardYoutubeUrl: c.cardYoutubeUrl || "",
+        existingCover: c.cardCoverImage || "",
+        existingMobileCover: c.cardCoverImageMobile || "",
       });
     }
     setTestimonialCards(seededCards);
@@ -195,6 +203,21 @@ const AboutTestimonial = () => {
                 : c.existingCardVideo || ""
               : "";
 
+          // Covers only apply to playable media; image cards drop theirs.
+          const cardCoverImage =
+            mediaType !== "image"
+              ? c.newCover
+                ? (await uploadToCloudinary(c.newCover, { folder: "chameri/about" })).url
+                : c.existingCover || ""
+              : "";
+
+          const cardCoverImageMobile =
+            mediaType !== "image"
+              ? c.newMobileCover
+                ? (await uploadToCloudinary(c.newMobileCover, { folder: "chameri/about" })).url
+                : c.existingMobileCover || ""
+              : "";
+
           return {
             quote: c.quote,
             name: c.name,
@@ -204,6 +227,8 @@ const AboutTestimonial = () => {
             cardImage,
             cardVideo,
             cardYoutubeUrl: mediaType === "youtube" ? (c.cardYoutubeUrl || "").trim() : "",
+            cardCoverImage,
+            cardCoverImageMobile,
           };
         })
       );
@@ -221,6 +246,8 @@ const AboutTestimonial = () => {
         newImage: null, preview: "",
         newCardImage: null, cardImagePreview: "",
         newCardVideo: null, cardVideoPreview: "",
+        newCover: null, coverPreview: "",
+        newMobileCover: null, mobileCoverPreview: "",
       })));
       qc.invalidateQueries(["about-main"]);
     },
@@ -301,6 +328,20 @@ const AboutTestimonial = () => {
                 }}
                 youtubeUrl={card.cardYoutubeUrl}
                 onYoutubeUrlChange={(v) => updateCard(i, { cardYoutubeUrl: v })}
+                coverPreview={card.coverPreview}
+                existingCover={card.existingCover}
+                onCoverChange={(f) => {
+                  if (!f) return;
+                  updateCard(i, { newCover: f, coverPreview: URL.createObjectURL(f) });
+                }}
+                onCoverRemove={() => updateCard(i, { newCover: null, coverPreview: "", existingCover: "" })}
+                mobileCoverPreview={card.mobileCoverPreview}
+                existingMobileCover={card.existingMobileCover}
+                onMobileCoverChange={(f) => {
+                  if (!f) return;
+                  updateCard(i, { newMobileCover: f, mobileCoverPreview: URL.createObjectURL(f) });
+                }}
+                onMobileCoverRemove={() => updateCard(i, { newMobileCover: null, mobileCoverPreview: "", existingMobileCover: "" })}
               />
 
               {/* Avatar Image */}

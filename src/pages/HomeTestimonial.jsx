@@ -23,6 +23,12 @@ const makeBlankCard = (id) => ({
   newCardVideo: null,
   cardVideoPreview: "",
   cardYoutubeUrl: "",
+  existingCover: "",
+  newCover: null,
+  coverPreview: "",
+  existingMobileCover: "",
+  newMobileCover: null,
+  mobileCoverPreview: "",
 });
 
 // --- Custom Hook for flash success ---
@@ -148,6 +154,8 @@ const HomeTestimonial = () => {
         existingCardImage: card.cardImage || "",
         existingCardVideo: card.cardVideo || "",
         cardYoutubeUrl: card.cardYoutubeUrl || "",
+        existingCover: card.cardCoverImage || "",
+        existingMobileCover: card.cardCoverImageMobile || "",
       }));
     }
 
@@ -200,6 +208,26 @@ const HomeTestimonial = () => {
     setCards(cards.map(c => c.id === id ? { ...c, newCardVideo: file, cardVideoPreview } : c));
   };
 
+  const handleCoverChange = (id, file) => {
+    if (!file) return;
+    const coverPreview = URL.createObjectURL(file);
+    setCards(cards.map(c => c.id === id ? { ...c, newCover: file, coverPreview } : c));
+  };
+
+  const removeCover = (id) => {
+    setCards(cards.map(c => c.id === id ? { ...c, newCover: null, coverPreview: "", existingCover: "" } : c));
+  };
+
+  const handleMobileCoverChange = (id, file) => {
+    if (!file) return;
+    const mobileCoverPreview = URL.createObjectURL(file);
+    setCards(cards.map(c => c.id === id ? { ...c, newMobileCover: file, mobileCoverPreview } : c));
+  };
+
+  const removeMobileCover = (id) => {
+    setCards(cards.map(c => c.id === id ? { ...c, newMobileCover: null, mobileCoverPreview: "", existingMobileCover: "" } : c));
+  };
+
   // Mutation
   const testimonialMutation = useMutation({
     mutationFn: async () => {
@@ -238,6 +266,21 @@ const HomeTestimonial = () => {
                 : card.existingCardVideo || ""
               : "";
 
+          // Covers only apply to playable media; image cards drop theirs.
+          const cardCoverImage =
+            mediaType !== "image"
+              ? card.newCover
+                ? (await uploadToCloudinary(card.newCover, { folder: "chameri/home" })).url
+                : card.existingCover || ""
+              : "";
+
+          const cardCoverImageMobile =
+            mediaType !== "image"
+              ? card.newMobileCover
+                ? (await uploadToCloudinary(card.newMobileCover, { folder: "chameri/home" })).url
+                : card.existingMobileCover || ""
+              : "";
+
           return {
             quote: card.quote,
             name: card.name,
@@ -249,6 +292,8 @@ const HomeTestimonial = () => {
             cardImage,
             cardVideo,
             cardYoutubeUrl: mediaType === "youtube" ? (card.cardYoutubeUrl || "").trim() : "",
+            cardCoverImage,
+            cardCoverImageMobile,
           };
         })
       );
@@ -363,6 +408,14 @@ const HomeTestimonial = () => {
                 onVideoChange={(file) => handleCardVideoChange(card.id, file)}
                 youtubeUrl={card.cardYoutubeUrl}
                 onYoutubeUrlChange={(v) => updateCard(card.id, "cardYoutubeUrl", v)}
+                coverPreview={card.coverPreview}
+                existingCover={card.existingCover}
+                onCoverChange={(file) => handleCoverChange(card.id, file)}
+                onCoverRemove={() => removeCover(card.id)}
+                mobileCoverPreview={card.mobileCoverPreview}
+                existingMobileCover={card.existingMobileCover}
+                onMobileCoverChange={(file) => handleMobileCoverChange(card.id, file)}
+                onMobileCoverRemove={() => removeMobileCover(card.id)}
               />
 
               <InputField label="Quote" value={card.quote} onChange={e => updateCard(card.id, "quote", e.target.value)} placeholder="e.g. This team is amazing!" isTextarea />
