@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axiosInstance";
 import toast from "react-hot-toast";
-import { Save, Loader2, Video, CheckCircle2, UploadCloud } from "lucide-react";
-import { uploadToCloudinary } from "../lib/cloudinaryUpload";
+import { Save, Loader2, Type, CheckCircle2 } from "lucide-react";
 
 // --- Custom Hook ---
 const useFlashSuccess = () => {
@@ -66,48 +65,13 @@ const InputField = ({ label, value, onChange, placeholder }) => (
   </div>
 );
 
-// --- Video Upload Field ---
-const VideoUploadField = ({ label, preview, existingUrl, fileInputRef, onChange }) => (
-  <div>
-    <label className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5 block">{label}</label>
-    <div
-      onClick={() => fileInputRef.current?.click()}
-      className="relative w-full aspect-video rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 hover:border-brand-300 transition-colors overflow-hidden group"
-    >
-      {(preview || existingUrl) ? (
-        <>
-          <video src={preview || existingUrl} className="w-full h-full object-cover" controls={false} autoPlay loop muted />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
-            <UploadCloud size={24} className="mb-2" />
-            <span className="text-sm font-semibold">Change Video</span>
-          </div>
-        </>
-      ) : (
-        <div className="text-center p-4">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-gray-400">
-            <UploadCloud size={20} />
-          </div>
-          <span className="text-sm font-medium text-gray-500">Click to upload Video</span>
-        </div>
-      )}
-    </div>
-    <input type="file" ref={fileInputRef} onChange={onChange} accept="video/*" className="hidden" />
-  </div>
-);
-
 // ── Main Component ───────────────────────────────────────────────────────────
 const KiwanoHero = () => {
   const qc = useQueryClient();
   const heroFlash = useFlashSuccess();
 
-  // Refs for file inputs
-  const videoRef = useRef(null);
-
   // State
   const [heading, setHeading] = useState("");
-  const [existingVideo, setExistingVideo] = useState("");
-  const [newVideo, setNewVideo] = useState(null);
-  const [previewVideo, setPreviewVideo] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["kiwano-main"],
@@ -120,40 +84,12 @@ const KiwanoHero = () => {
   useEffect(() => {
     if (!data) return;
     setHeading(data?.heroSection?.heading || "");
-    setExistingVideo(data?.heroSection?.video || "");
   }, [data]);
 
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setNewVideo(file);
-      setPreviewVideo(URL.createObjectURL(file));
-    }
-  };
-
   const heroMutation = useMutation({
-    mutationFn: async () => {
-      // New video goes straight to Cloudinary from the browser — this avoids
-      // routing large videos through the backend's serverless function,
-      // which rejects anything over ~4.5MB.
-      let videoUrl = existingVideo;
-      if (newVideo) {
-        const uploaded = await uploadToCloudinary(newVideo, {
-          folder: "chameri/kiwano",
-          resourceType: "video",
-        });
-        videoUrl = uploaded.url;
-      }
-
-      return api.put("/kiwano/main/hero", {
-        heading,
-        video: videoUrl,
-      });
-    },
+    mutationFn: () => api.put("/kiwano/main/hero", { heading }),
     onSuccess: () => {
       heroFlash.flash();
-      setNewVideo(null);
-      setPreviewVideo("");
       qc.invalidateQueries(["kiwano-main"]);
     },
     onError: (err) =>
@@ -174,13 +110,13 @@ const KiwanoHero = () => {
       <div className="bg-dark-800 p-6 rounded-3xl mb-6 shadow-sm border border-surface-border">
         <h1 className="text-2xl font-bold text-white">Kiwano — Hero Section</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Manage the hero video and heading for the Kiwano page.
+          Manage the hero heading for the Kiwano page.
         </p>
       </div>
 
       <FormCard
         title="Hero Section Settings"
-        icon={Video}
+        icon={Type}
         onSave={() => heroMutation.mutate()}
         isSaving={heroMutation.isPending}
         saved={heroFlash.saved}
@@ -192,15 +128,6 @@ const KiwanoHero = () => {
               value={heading} 
               onChange={e => setHeading(e.target.value)} 
               placeholder="e.g. Discover Kiwano Living" 
-            />
-          </div>
-          <div className="md:col-span-2">
-            <VideoUploadField
-              label="Background Video"
-              preview={previewVideo}
-              existingUrl={existingVideo}
-              fileInputRef={videoRef}
-              onChange={handleFile}
             />
           </div>
         </div>
